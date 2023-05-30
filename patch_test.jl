@@ -33,13 +33,14 @@ ops = [
     Operator{:∫∫εᵢⱼσᵢⱼdxdy}(:E=>E,:ν=>ν),
     Operator{:∫vᵢgᵢds}(:α=>1e13*E),
     Operator{:Hₑ_PlaneStress}(:E=>E,:ν=>ν),
-    Operator{:∫wVdΓ}
+    Operator{:∫vₓσdx}()
 ]
 
 k = zeros(2*nₚ,2*nₚ)
 f = zeros(2*nₚ)
 ops[1].(elements["Ω"];k=k)
-ops[2].(elements["Γ"];k=k,f=f)
+# ops[2].(elements["Γ"];k=k,f=f)
+ops[4].(elements["Γ"];k=k,f=f)
 
 d = k\f
 push!(getfield(nodes[1],:data),:d₁=>(1,d[1:2:2*nₚ-1]))
