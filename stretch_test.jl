@@ -11,7 +11,7 @@ set∇𝝭!.(elements["Ω"])
 set𝝭!.(elements["Γᵗ"])
 set𝝭!.(elements["Γᵍ"])
 
-E = 3e6
+E = 2.1e6
 ν=0.3
 prescribe!(elements["Γᵍ"],:g₁=>(x,y,z)->0.0)
 prescribe!(elements["Γᵍ"],:g₂=>(x,y,z)->0.0)
@@ -22,7 +22,7 @@ prescribe!(elements["Γᵗ"],:t₁=>(x,y,z)->1e3)
 prescribe!(elements["Γᵗ"],:t₂=>(x,y,z)->0.0)
 
 ops = [
-    Operator{:∫vᵢσdΩ_mohr_coulomb}(:λ=>,:μ=>),
+    Operator{:∫vᵢσdΩ_mohr_coulomb}(:λ=>7.69,:μ=>6.52,:c=>18.1,:𝜙=>0.677;:tol=>1e-14),
     Operator{:∫vᵢtᵢds}(),
     Operator{:∫vᵢgᵢds}(:α=>1e13*E),
     Operator{:∫wVdΓ}
