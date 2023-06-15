@@ -10,6 +10,7 @@ function import_fem(filename::String)
         node.y = p.y
         node.z = p.z
         push!(nodes,node)
+       
     end
 
     elements = Dict(["Ω"=>Element{:Tri3}[],"Γ"=>Element{:Seg2}[],"Γᵗ"=>Element{:Seg2}[]])
@@ -85,6 +86,8 @@ function import_fem(filename::String)
         :n₁=>(3,zeros(nₑ)),
         :n₂=>(3,zeros(nₑ)),
         :𝝭=>(4,zeros(ng*nₑ*2)),
+        :∂𝝭∂x=>(4,zeros(ng*nₑ*2)),
+        :∂𝝭∂y=>(4,zeros(ng*nₑ*2)),
     ])
     for (C,a) in enumerate(elms["Γ"])
         element = Element{:Seg2}((c,2,𝓒),(g,ng,𝓖))
@@ -120,7 +123,7 @@ function import_fem(filename::String)
     end
 
 
-    data = Dict([:x=>(1,[0]),:y=>(1,[-205]),:z=>(1,[0])])
+
     𝓒 = Node{(:𝐼,),1}[]
     𝓖 = Node{(:𝑔,:𝐺,:𝐶,:𝑠),4}[]
     c = 0
@@ -141,6 +144,8 @@ function import_fem(filename::String)
          :n₁=>(3,zeros(nₑ)),
          :n₂=>(3,zeros(nₑ)),
          :𝝭=>(4,zeros(ng*nₑ*2)),
+         :∂𝝭∂x=>(4,zeros(ng*nₑ*2)),
+         :∂𝝭∂y=>(4,zeros(ng*nₑ*2)),
     ])
     for (C,a) in enumerate(elms["Γᵗ"])
         element = Element{:Seg2}((c,2,𝓒),(g,ng,𝓖))
@@ -177,3 +182,4 @@ function import_fem(filename::String)
     return elements,nodes
 end
     
+import Pkg; Pkg.precompile()
