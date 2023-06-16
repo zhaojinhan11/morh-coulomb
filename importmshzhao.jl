@@ -147,6 +147,7 @@ function import_fem(filename::String)
          :∂𝝭∂x=>(4,zeros(ng*nₑ*2)),
          :∂𝝭∂y=>(4,zeros(ng*nₑ*2)),
     ])
+    
     for (C,a) in enumerate(elms["Γᵗ"])
         element = Element{:Seg2}((c,2,𝓒),(g,ng,𝓖))
         for v in a.vertices
@@ -181,5 +182,3 @@ function import_fem(filename::String)
     end
     return elements,nodes
 end
-    
-import Pkg; Pkg.precompile()

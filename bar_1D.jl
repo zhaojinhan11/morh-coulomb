@@ -10,10 +10,8 @@ using ApproxOperator, LinearAlgebra, Printf, CairoMakie
 La = 1. 
 Lb = 1.
 # material coefficients
-λ = 7.69
-μ = 6.52
-c = 18.5
-𝜙 = 0.677
+EA = 1.
+
 # num of nodes
 nₚ₁ = 11
 nₚ₂ = 11
@@ -30,40 +28,36 @@ for i in 1:nₑ₁
         y[i+1,j+1] = i*Lb/nₑ₂
     end    
 end
-nodes = ApproxOperator.Node(:x=>x,:y=>y,:z=>zeros(nₚ₁,nₚ₂))
+nodes = ApproxOperator.Node(:x=>x,:y=>zeros(nₚ),:z=>zeros(nₚ))
 
 # elements
 elements = Dict{String,Any}()
-elements["Ω"] = [ApproxOperator.Element{:Quad4}([nodes[i,j],nodes[i+1,j],nodes[i+1,j+1],nodes[i,j+1]]) for i in 1:nₑ₁ for j in 1:nₑ₂]
-elements["Γᵍ"] = [ApproxOperator.Element{:Poi2}([nodes[1,1]])]
-elements["Γᵗ"] = [ApproxOperator.Element{:Poi2}([nodes[nₚ₁,nₚ₂]])]
+elements["Ω"] = [ApproxOperator.Element{:Seg2}([nodes[i],nodes[i+1]]) for i in 1:nₑ]
+elements["Γᵍ"] = [ApproxOperator.Element{:Poi1}([nodes[1]])]
+elements["Γᵗ"] = [ApproxOperator.Element{:Poi1}([nodes[nₚ]])]
 
 # set ingeration points
-set𝓖!(elements["Ω"],:QuadGI4)
+set𝓖!(elements["Ω"],:SegGI2)
 set𝓖!(elements["Γᵗ"],:PoiGI1)
 set𝓖!(elements["Γᵍ"],:PoiGI1)
 
 # set shape functions
-set𝝭!(elements["Ω"],:Quad4)
-set∇𝝭!(elements["Ω"],:Quad4)
+set𝝭!(elements["Ω"])
+set∇𝝭!(elements["Ω"])
+set𝝭!(elements["Γᵗ"])
+set𝝭!(elements["Γᵍ"])
+
 # prescribe
-prescribe!(elements["Ω"],:σ₁₁=>(x,y,z)->0.0) 
-prescribe!(elements["Ω"],:σ₂₂=>(x,y,z)->0.0) 
-prescribe!(elements["Ω"],:σ₃₃=>(x,y,z)->0.0) 
-prescribe!(elements["Ω"],:σ₁₂=>(x,y,z)->0.0) 
-prescribe!(elements["Ω"],:sₙ=>(x,y,z)->0.0) 
-prescribe!(elements["Ω"],:εᵖ₁₁=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:εᵖ₂₂=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:εᵖ₁₂=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:Δε₁₁=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:Δε₂₂=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:Δε₁₂=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:ε₁₁=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:ε₂₂=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:ε₁₂=>(x,y,z)->0.0)
+prescribe!(elements["Ω"],:σₙ=>(x,y,z)->0.0) 
+prescribe!(elements["Ω"],:αₙ=>(x,y,z)->0.0)
+prescribe!(elements["Ω"],:εᵖₙ=>(x,y,z)->0.0)
+prescribe!(elements["Ω"],:Δεₙ=>(x,y,z)->0.0)
+prescribe!(elements["Ω"],:ε=>(x,y,z)->0.0)
+prescribe!(elements["Γᵍ"],:g=>(x,y,z)->0.0)
+
 # set operator
 ops = [
-    Operator{:∫vᵢσdΩ_mohr_coulomb}(:λ=>7.69,:μ=>6.52,:c=>18.1,:𝜙=>0.677;:tol=>1e-14),
+    Operator{:∫vₓσdx}(:E=>100.0,:K=>100.0,:σy=>1.0,:tol=>1e-14),
     Operator{:∫vtdΓ}(),
     Operator{:∫vgdΓ}(:α=>1e15)
 ]
@@ -90,8 +84,7 @@ tol = 1e-13
 for n in 1:total_steps
     fill!(fext,0.0)
 
-    prescribe!(elements["Γᵗ"],:t₁=>(x,y,z)->t₁*n/total_steps)
-    prescribe!(elements["Γᵗ"],:t₂=>(x,y,z)->t₂*n/total_steps)
+    prescribe!(elements["Γᵗ"],:t=>(x,y,z)->F*n/total_steps)
     ops[2](elements["Γᵗ"],fext)
 
     @printf "Load step=%i, f=%e \n" n F*n/total_steps
