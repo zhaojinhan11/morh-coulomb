@@ -101,8 +101,9 @@ for n in 1:total_steps
         end      
     end
 end
-println("ε = ", ε)
-println("σ = ", σ)
+f = Figure()
+Axis(f[1,1])
 scatterlines(ε,σ)
+
 
   
