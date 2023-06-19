@@ -1,6 +1,6 @@
 
 using Revise, ApproxOperator, LinearAlgebra, Printf
-using CairoMakie
+using CairoMakie,Plots
 include("importmshzhao.jl")
 elements,nodes = import_fem("./msh/testzhao.msh")
 nₚ = length(nodes)
@@ -77,33 +77,32 @@ for n in 1:total_steps
       n in 1:total_steps
       𝓒 = ap.𝓒
       𝓖 = ap.𝓖
-      for ξ in 𝓖
-            for (i,ξ) in enumerate(𝓖)
-                if i == 1
-                    B₁ = ξ[:∂𝝭∂x]
-                    B₂ = ξ[:∂𝝭∂y]
-                    ε₁₁ = 0.0
-                    ε₂₂ = 0.0
-                    ε₁₂ = 0.0
-                    for (j,xⱼ) in enumerate(𝓒)
-                        ε₁₁ += B₁[j]*xⱼ.d₁
-                        ε₂₂ += B₂[j]*xⱼ.d₂
-                        ε₁₂ += B₁[j]*xⱼ.d₂ + B₂[j]*xⱼ.d₁
-                    end
-                    σ₁₁ = Cᵢᵢᵢᵢ*ε₁₁+Cᵢᵢⱼⱼ*ε₂₂
-                    σ₂₂ = Cᵢᵢⱼⱼ*ε₁₁+Cᵢᵢᵢᵢ*ε₂₂
-                    σ₁₂ = Cᵢⱼᵢⱼ*ε₁₂
-                    σ[n+1] = σ₁₁
-                    ε[n+1] = ε₁₁
-                    break
+    
+        for (i,ξ) in enumerate(𝓖)
+            if i == 1
+                B₁ = ξ[:∂𝝭∂x]
+                B₂ = ξ[:∂𝝭∂y]
+                ε₁₁ = 0.0
+                ε₂₂ = 0.0
+                ε₁₂ = 0.0
+                for (j,xⱼ) in enumerate(𝓒)
+                    ε₁₁ += B₁[j]*xⱼ.d₁
+                    ε₂₂ += B₂[j]*xⱼ.d₂
+                    ε₁₂ += B₁[j]*xⱼ.d₂ + B₂[j]*xⱼ.d₁
                 end
+                σ₁₁ = Cᵢᵢᵢᵢ*ε₁₁+Cᵢᵢⱼⱼ*ε₂₂
+                σ₂₂ = Cᵢᵢⱼⱼ*ε₁₁+Cᵢᵢᵢᵢ*ε₂₂
+                σ₁₂ = Cᵢⱼᵢⱼ*ε₁₂
+                σ[n+1] = σ₁₁
+                ε[n+1] = ε₁₁ 
+                
+                break
             end
-        end      
+        end
+            
     end
+   
 end
-f = Figure()
-Axis(f[1,1])
-scatterlines(ε,σ)
 
+scatterlines!(ε,σ)
 
-  
