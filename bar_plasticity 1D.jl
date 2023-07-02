@@ -7,48 +7,45 @@
 using ApproxOperator, LinearAlgebra, Printf, CairoMakie
 
 # length of bar
-La = 1. 
 Lb = 1.
 # material coefficients
 EA = 1.
 
 # num of nodes
-nₚ₁ = 11
-nₚ₂ = 11
-# num of cells
-nₑ₁ = nₚ₁ - 1
-nₑ₂ = nₚ₂ - 1
+nₚ = 11
 
-# nodes 
-x = zeros(nₚ₁,nₚ₂)
-y = zeros(nₚ₁,nₚ₂)
-for i in 1:nₑ₁
-    for j in 1:nₑ₂
-        x[i+1,j+1] = i*La/nₑ₁
-        y[i+1,j+1] = i*Lb/nₑ₂
-    end    
+# num of cells
+nₑ = nₚ - 1
+
+# nodes
+x = zeros(nₚ)
+for i in 1:nₑ#i的范围是1到np
+    x[i+1] = i*Lb/nₑ#定义x的值（将Lb的长度划分为ne x₁是起始点0）
 end
-nodes = ApproxOperator.Node(:x=>x,:y=>zeros(nₚ),:z=>zeros(nₚ))
+nodes = ApproxOperator.Node(:x=>x,:y=>zeros(nₚ),:z=>zeros(nₚ))#创建名字为nodes的节点集合 x就是上式定义的x  yz都是零
 
 # elements
 elements = Dict{String,Any}()
-elements["Ω"] = [ApproxOperator.Element{:Seg2}([nodes[i],nodes[i+1]]) for i in 1:nₑ]
+elements["Ω"] = [ApproxOperator.Element{:Seg2}([nodes[i],nodes[i+1]]) for i in 1:nₑ]#杆单元  nodes是定义每一个单元的起点和终点
 elements["Γᵍ"] = [ApproxOperator.Element{:Poi1}([nodes[1]])]
 elements["Γᵗ"] = [ApproxOperator.Element{:Poi1}([nodes[nₚ]])]
 
 # set ingeration points
-set𝓖!(elements["Ω"],:SegGI2)
+set𝓖!(elements["Ω"],:SegGI2)   #设置积分点类型
 set𝓖!(elements["Γᵗ"],:PoiGI1)
 set𝓖!(elements["Γᵍ"],:PoiGI1)
 
 # set shape functions
+set_memory_𝝭!(elements["Ω"],:𝝭,:∂𝝭∂x)
+set_memory_𝝭!(elements["Γᵗ"],:𝝭)
+set_memory_𝝭!(elements["Γᵍ"],:𝝭)
 set𝝭!(elements["Ω"])
 set∇𝝭!(elements["Ω"])
 set𝝭!(elements["Γᵗ"])
 set𝝭!(elements["Γᵍ"])
 
 # prescribe
-prescribe!(elements["Ω"],:σₙ=>(x,y,z)->0.0) 
+prescribe!(elements["Ω"],:σₙ=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:αₙ=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:εᵖₙ=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:Δεₙ=>(x,y,z)->0.0)

@@ -17,7 +17,7 @@ Curve Loop(1) = {1,2,3,4};
 
 Plane Surface(1) = {1};
 
-Physical Curve("Γᵗ") = {2};``
+Physical Curve("Γᵗ") = {2};
 Physical Curve("Γᵍ") = {4};
 Physical Surface("Ω") = {1};
 

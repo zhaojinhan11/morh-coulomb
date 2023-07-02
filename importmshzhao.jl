@@ -13,6 +13,7 @@ function import_fem(filename::String)
        
     end
 
+   
     elements = Dict(["Ω"=>Element{:Tri3}[],"Γ"=>Element{:Seg2}[],"Γᵗ"=>Element{:Seg2}[]])
 
     𝓒 = Node{(:𝐼,),1}[]
@@ -112,7 +113,7 @@ function import_fem(filename::String)
             x.x = x_
             x.y = y_
             x.z = z_
-            x.𝑤 = 𝐿*x.w
+            x.𝑤 = 𝐿*x.w/2
             push!(𝓖,x)
             s += 2
         end
@@ -171,7 +172,7 @@ function import_fem(filename::String)
             x.x = x_
             x.y = y_
             x.z = z_
-            x.𝑤 = 𝐿*x.w
+            x.𝑤 = 𝐿*x.w/2
             push!(𝓖,x)
             s += 2
         end

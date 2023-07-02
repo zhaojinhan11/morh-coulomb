@@ -1,6 +1,6 @@
 
 using Revise, ApproxOperator, LinearAlgebra, Printf
-using CairoMakie,Plots
+using CairoMakie
 include("importmshzhao.jl")
 elements,nodes = import_fem("./msh/testzhao.msh")
 nₚ = length(nodes)
@@ -46,35 +46,38 @@ tol = 1e-13
 σ = zeros(total_steps+1)
 ε = zeros(total_steps+1)
 for n in 1:total_steps
+    fill!(k,0.0)
     fill!(f,0.0)
     prescribe!(elements["Γᵗ"],:t₁=>(x,y,z)->F*n/total_steps)
+    @printf "%f" F*n/total_steps
     prescribe!(elements["Γᵗ"],:t₂=>(x,y,z)->0.0)
     ops[3](elements["Γᵗ"],f)
     ops[2](elements["Γ"],k,f)
-    i = 0
-    Δdnorm = 0.0
-    fnorm = 0.0
-    while   i < max_iter
-        i += 1
-        fill!(k,0.0)
-        ops[3](elements["Γᵗ"],f)
+    # i = 0
+    # Δdnorm = 0.0
+    # fnorm = 0.0
+    # while i < max_iter
+    #     i += 1
+        
+        # ops[3](elements["Γᵗ"],f)
         ops[1](elements["Ω"],k)
-        ops[2](elements["Γ"],k,f)   
-        Δd .= k\f 
+        # ops[2](elements["Γ"],k,f)   
+        # Δd .= k\f 
 
-        d .+= Δd
+        d .= k\f
 
         d₁ .= d[1:2:2*nₚ]
         d₂ .= d[2:2:2*nₚ] 
 
-        Δdnorm = LinearAlgebra.norm(Δd)
-        if Δdnorm < tol
-            break
-        end
-    end
+        # Δdnorm = LinearAlgebra.norm(Δd)
+        # if Δdnorm < tol
+        #     break
+        # end
+    #     break
+        # @printf "%i" i
+    # end
   
     for ap in elements["Ω"][1:1]
-      n in 1:total_steps
       𝓒 = ap.𝓒
       𝓖 = ap.𝓖
     
@@ -93,16 +96,17 @@ for n in 1:total_steps
                 σ₁₁ = Cᵢᵢᵢᵢ*ε₁₁+Cᵢᵢⱼⱼ*ε₂₂
                 σ₂₂ = Cᵢᵢⱼⱼ*ε₁₁+Cᵢᵢᵢᵢ*ε₂₂
                 σ₁₂ = Cᵢⱼᵢⱼ*ε₁₂
+                @printf "%i\n" n 
                 σ[n+1] = σ₁₁
                 ε[n+1] = ε₁₁ 
                 
                 break
             end
         end
-            
     end
-   
 end
 
+f = Figure()
+Axis(f[1,1])
 scatterlines!(ε,σ)
-
+f

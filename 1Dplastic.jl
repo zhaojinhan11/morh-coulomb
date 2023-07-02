@@ -38,6 +38,9 @@ function (op::Operator{:∫vₓσdx})(ap::T,k::AbstractMatrix{Float64},fint::Abs
         end
     end
 end
+"""
+morh-coulbom
+"""
 function (op::Operator{:∫vₓσdx})(ap::T,k::AbstractMatrix{Float64},fint::AbstractVector) where T<:AbstractElement
     𝓒 = ap.𝓒; 𝓖 = ap.𝓖
     λ = op.λ
