@@ -113,6 +113,7 @@ for n in 1:total_steps
                 εₙ += B[i]*xᵢ.d
             end
             ξ.ε = εₙ
+            σ = ξ.σₙ
         end
     end
 

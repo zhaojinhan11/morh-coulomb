@@ -12,7 +12,7 @@ set𝝭!.(elements["Γ"])
 set𝝭!.(elements["Γᵗ"])
 E = 1.0
 ν=0.0
-F = 2.0 
+
 Cᵢᵢᵢᵢ = E/(1-ν^2)
 Cᵢᵢⱼⱼ = E*ν/(1-ν^2)
 Cᵢⱼᵢⱼ = E/2/(1+ν)
@@ -39,7 +39,7 @@ d₂ = zeros(nₚ)
 push!(nodes,:d=>d)
 push!(nodes,:Δd=>Δd)
 push!(nodes,:d₁=>d₁,:d₂=>d₂)
-F = 2.0 
+F = 200.0 
 total_steps = 100
 max_iter = 100
 tol = 1e-13
@@ -65,7 +65,6 @@ for n in 1:total_steps
         # Δd .= k\f 
 
         d .= k\f
-
         d₁ .= d[1:2:2*nₚ]
         d₂ .= d[2:2:2*nₚ] 
 

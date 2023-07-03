@@ -1,7 +1,7 @@
 
 using Revise, ApproxOperator, LinearAlgebra, Printf
 using CairoMakie
-include("importmshzhao.jl")
+include("importmshzhao.jl") 
 elements,nodes = import_fem("./msh/testzhao.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
@@ -17,6 +17,7 @@ c = 18.5
 𝜙 = 0.677
 F = 2.0 
 tol = 1e-13
+
 # prescribe
 prescribe!(elements["Γ"],:g₁=>(x,y,z)->0.0)
 prescribe!(elements["Γ"],:g₂=>(x,y,z)->0.0)
@@ -51,14 +52,16 @@ k = zeros(2*nₚ,2*nₚ)
 f = zeros(2*nₚ)
 d = zeros(2*nₚ)
 Δd = zeros(2*nₚ)
-Δd₁ = zeros(2*nₚ)
-Δd₂ = zeros(2*nₚ)
+Δd₁ = zeros(nₚ)
+Δd₂ = zeros(nₚ)
 d₁ = zeros(nₚ)
 d₂ = zeros(nₚ)
 push!(nodes,:d=>d)
 push!(nodes,:Δd=>Δd)
 push!(nodes,:d₁=>d₁,:d₂=>d₂)
-F = 2.0 
+push!(nodes,:Δd₂=>Δd₂)
+push!(nodes,:Δd₁=>Δd₁)
+F = 300.0 
 total_steps = 100
 max_iter = 100
 
@@ -79,13 +82,14 @@ for n in 1:total_steps
         i += 1
         fill!(k,0.0)
         fill!(fint,0.0)
-        ops[1](elements["Ω"],k,fint)
+        ops[1].(elements["Ω"];k=k,fint=fint)
         Δd .= k\(fext-fint)
-
-        d .+= Δd
+        d  .+= Δd
+        Δd₁ .= Δd[1:2:2*nₚ]
+        Δd₂ .= Δd[2:2:2*nₚ]
         d₁ .= d[1:2:2*nₚ]
         d₂ .= d[2:2:2*nₚ] 
-        Δdnorm = LinearAlgebra.norm(Δd)
+        Δdnorm = LinearAlgebra.norm(Δd)#Δdde 范数衡量向量的大小
         if Δdnorm < tol
             break
         end
@@ -95,7 +99,7 @@ for n in 1:total_steps
       𝓒 = ap.𝓒
       𝓖 = ap.𝓖
     
-        for (i,ξ) in enumerate(𝓖)
+      for (i,ξ) in enumerate(𝓖)
             if i == 1
                 B₁ = ξ[:∂𝝭∂x]
                 B₂ = ξ[:∂𝝭∂y]
@@ -108,14 +112,18 @@ for n in 1:total_steps
                     ε₁₂ += B₁[j]*xⱼ.d₂ + B₂[j]*xⱼ.d₁
                 end
                 @printf "%i\n" n 
+                ξ.ε₁₁ = ε₁₁
+                σ₁₁ = ξ.σ₁₁
                 σ[n+1] = σ₁₁
-                ε[n+1] = ε₁₁   
+                ε[n+1] = ε₁₁
+                
                 break
             end
         end
-    end
+   
+    end 
 end
- 
+  
 f = Figure()
 Axis(f[1,1])
 scatterlines!(ε,σ)
