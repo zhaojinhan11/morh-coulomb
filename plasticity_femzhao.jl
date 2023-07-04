@@ -49,7 +49,8 @@ ops = [
 fint = zeros(2*nₚ)
 fext = zeros(2*nₚ)
 k = zeros(2*nₚ,2*nₚ)
-f = zeros(2*nₚ)
+kα = zeros(2*nₚ,2*nₚ)
+fα = zeros(2*nₚ)
 d = zeros(2*nₚ)
 Δd = zeros(2*nₚ)
 Δd₁ = zeros(nₚ)
@@ -74,7 +75,7 @@ for n in 1:total_steps
     @printf "Load step=%i, f=%e \n" n F*n/total_steps
     prescribe!(elements["Γᵗ"],:t₂=>(x,y,z)->0.0)
     ops[3](elements["Γᵗ"],fext)
-    ops[2](elements["Γ"],k,f)#什么时候加f什么时候加k
+    ops[2](elements["Γ"],kα,fα)#什么时候加f什么时候加k
     i = 0
     Δdnorm = 0.0
     fnorm = 0.0
@@ -83,7 +84,7 @@ for n in 1:total_steps
         fill!(k,0.0)
         fill!(fint,0.0)
         ops[1].(elements["Ω"];k=k,fint=fint)
-        Δd .= k\(fext-fint)
+        Δd .= (k+kα)\(fext-fint+fα)
         d  .+= Δd
         Δd₁ .= Δd[1:2:2*nₚ]
         Δd₂ .= Δd[2:2:2*nₚ]
@@ -96,10 +97,10 @@ for n in 1:total_steps
     end
     #cal ε
     for ap in elements["Ω"][1:1]
-      𝓒 = ap.𝓒
-      𝓖 = ap.𝓖
+        𝓒 = ap.𝓒
+        𝓖 = ap.𝓖
     
-      for (i,ξ) in enumerate(𝓖)
+        for (i,ξ) in enumerate(𝓖)
             if i == 1
                 B₁ = ξ[:∂𝝭∂x]
                 B₂ = ξ[:∂𝝭∂y]
