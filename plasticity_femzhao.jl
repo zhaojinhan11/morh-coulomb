@@ -14,8 +14,9 @@ set𝝭!.(elements["Γᵗ"])
 λ = 7.69
 μ = 6.52
 c = 18.5
-𝜙 = 0.677
-F = 2.0 
+𝜙 = 0.667
+F = 37.2
+
 tol = 1e-13
 
 # prescribe
@@ -62,8 +63,8 @@ push!(nodes,:Δd=>Δd)
 push!(nodes,:d₁=>d₁,:d₂=>d₂)
 push!(nodes,:Δd₂=>Δd₂)
 push!(nodes,:Δd₁=>Δd₁)
-F = 300.0 
-total_steps = 100
+
+total_steps = 10
 max_iter = 100
 
 σ = zeros(total_steps+1)
@@ -88,14 +89,18 @@ for n in 1:total_steps
         d  .+= Δd
         Δd₁ .= Δd[1:2:2*nₚ]
         Δd₂ .= Δd[2:2:2*nₚ]
-        d₁ .= d[1:2:2*nₚ]
-        d₂ .= d[2:2:2*nₚ] 
+        d₁ .+= Δd₁
+        d₂ .+= Δd₂
+        
         Δdnorm = LinearAlgebra.norm(Δd)#Δdde 范数衡量向量的大小
         if Δdnorm < tol
             break
         end
     end
-    #cal ε
+    
+   
+   
+
     for ap in elements["Ω"][1:1]
         𝓒 = ap.𝓒
         𝓖 = ap.𝓖
@@ -117,6 +122,7 @@ for n in 1:total_steps
                 σ₁₁ = ξ.σ₁₁
                 σ[n+1] = σ₁₁
                 ε[n+1] = ε₁₁
+               
                 
                 break
             end
@@ -124,7 +130,8 @@ for n in 1:total_steps
    
     end 
 end
-  
+println(σ)
+println(ε)
 f = Figure()
 Axis(f[1,1])
 scatterlines!(ε,σ)
