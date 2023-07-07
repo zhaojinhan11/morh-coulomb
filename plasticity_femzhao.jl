@@ -11,11 +11,13 @@ set∇𝝭!.(elements["Ω"])
 set𝝭!.(elements["Γ"])
 set𝝭!.(elements["Γᵗ"])
 # material coefficients
-λ = 7.69
-μ = 6.52
-c = 18.5
-𝜙 = 0.667
-F = 37.2
+E = 1.0
+ν = 0.3
+λ = E*ν/(1.0+ν)/(1.0-2.0*ν)
+μ = 0.5*E/(1.0+ν)
+c = 1.0
+𝜙 = 0.0
+F = 5.0
 
 tol = 1e-13
 
@@ -45,6 +47,7 @@ ops = [
     Operator{:∫vᵢσdΩ_mohr_coulomb}(:λ=>λ,:μ=>μ,:c=>c,:𝜙=>𝜙,:tol=>tol),
     Operator{:∫vᵢgᵢds}(:α=>1e13),#边界积分计算
     Operator{:∫vᵢtᵢds}(),#算外界的力f
+    Operator{:∫vᵢσdΩ_tresca}(:λ=>λ,:μ=>μ,:c=>c),
 ]
 # assembly
 fint = zeros(2*nₚ)
@@ -65,7 +68,7 @@ push!(nodes,:Δd₂=>Δd₂)
 push!(nodes,:Δd₁=>Δd₁)
 
 total_steps = 10
-max_iter = 100
+max_iter = 10
 
 σ = zeros(total_steps+1)
 ε = zeros(total_steps+1)
@@ -84,22 +87,24 @@ for n in 1:total_steps
         i += 1
         fill!(k,0.0)
         fill!(fint,0.0)
-        ops[1].(elements["Ω"];k=k,fint=fint)
+        ops[4].(elements["Ω"];k=k,fint=fint)
         Δd .= (k+kα)\(fext-fint+fα)
         d  .+= Δd
         Δd₁ .= Δd[1:2:2*nₚ]
         Δd₂ .= Δd[2:2:2*nₚ]
         d₁ .+= Δd₁
         d₂ .+= Δd₂
+        # println(d₁)
         
         Δdnorm = LinearAlgebra.norm(Δd)#Δdde 范数衡量向量的大小
-        if Δdnorm < tol
+        @printf "Iterator step=%i, Δdnorm=%e \n" i Δdnorm
+        if Δdnorm < 1e3*tol
             break
         end
+        if Δdnorm > 1e5
+            error("can not converge!")
+        end
     end
-    
-   
-   
 
     for ap in elements["Ω"][1:1]
         𝓒 = ap.𝓒
