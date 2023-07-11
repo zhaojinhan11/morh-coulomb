@@ -156,18 +156,18 @@ fo = open("./vtk/mctest2/figure"*string(n,pad=4)*".vtk","w")
         @printf fo "%i %i %i %i\n" 3 (x.𝐼-1 for x in 𝓒)...
     end
     @printf fo "POINT_DATA %i\n" nₚ
-    @printf fo "SCALARS εᵖ float 1\n"
+    @printf fo "SCALARS UX float 1\n"
     @printf fo "LOOKUP_TABLE default\n"
     for p in nodes
         @printf fo "%f\n" p.d₁
     end
-    @printf fo "SCALARS εᵖ₂₂ float 1\n"
+    @printf fo "SCALARS UY float 1\n"
     @printf fo "LOOKUP_TABLE default\n"
     for p in nodes
         @printf fo "%f\n" p.d₂
     end
     @printf fo "CELL_DATA %i\n" nₑ
-    @printf fo "TENSORS STRESS float\n"
+    @printf fo "TENSORS PLASTIC STRAIN float\n"
     for ap in elements["Ω"]
         𝓒 = ap.𝓒
         𝓖 = ap.𝓖
