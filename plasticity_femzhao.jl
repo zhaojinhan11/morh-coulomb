@@ -2,7 +2,7 @@
 using Revise, ApproxOperator, LinearAlgebra, Printf
 using CairoMakie
 include("importmshzhao.jl") 
-elements,nodes = import_fem("./msh/testzhao.msh")
+elements,nodes = import_fem("./msh/mc2.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 # set shape functions
@@ -11,13 +11,13 @@ set∇𝝭!.(elements["Ω"])
 set𝝭!.(elements["Γ"])
 set𝝭!.(elements["Γᵗ"])
 # material coefficients
-E = 1.0
+E = 14
 ν = 0.3
 λ = E*ν/(1.0+ν)/(1.0-2.0*ν)
 μ = 0.5*E/(1.0+ν)
 c = 10.0
-𝜙 = 0
-F =20
+𝜙 = 0.5235
+F =5
 
 tol = 1e-13
 
@@ -106,10 +106,71 @@ for n in 1:total_steps
        # end
     end
 
-    for ap in elements["Ω"][]
+   # for ap in elements["Ω"]
+   #     𝓒 = ap.𝓒
+   #     𝓖 = ap.𝓖
+   # 
+   #     for (i,ξ) in enumerate(𝓖)
+   #         if i == 1
+   #             B₁ = ξ[:∂𝝭∂x]
+   #             B₂ = ξ[:∂𝝭∂y]
+   #             ε₁₁ = 0.0
+   #             ε₂₂ = 0.0
+   #             ε₁₂ = 0.0
+   #             for (j,xⱼ) in enumerate(𝓒)
+   #                 ε₁₁ += B₁[j]*xⱼ.d₁
+   #                 ε₂₂ += B₂[j]*xⱼ.d₂
+   #                 ε₁₂ += B₁[j]*xⱼ.d₂ + B₂[j]*xⱼ.d₁
+   #             end
+   #             @printf "%i\n" n 
+   #             ξ.ε₁₁ = ε₁₁
+   #             σ₁₁ = ξ.σ₁₁
+   #             σ[n+1] = σ₁₁
+   #             ε[n+1] = ε₁₁
+   #            
+   #             
+   #             break
+   #         end
+   #     end
+   #
+   # end 
+   #println(σ)
+   #println(ε)
+
+   #f = Figure()
+   #Axis(f[1,1])
+   #scatterlines!(ε,σ)
+   #f
+fo = open("./vtk/mctest2/figure"*string(n,pad=4)*".vtk","w")
+    @printf fo "# vtk DataFile Version 2.0\n"
+    @printf fo "Test\n"
+    @printf fo "ASCII\n"
+    @printf fo "DATASET POLYDATA\n"
+    @printf fo "POINTS %i float\n" nₚ
+    for p in nodes
+        @printf fo "%f %f %f\n" p.x p.y p.z
+    end
+    @printf fo "POLYGONS %i %i\n" nₑ 4*nₑ
+    for ap in elements["Ω"]
+        𝓒 = ap.𝓒
+        @printf fo "%i %i %i %i\n" 3 (x.𝐼-1 for x in 𝓒)...
+    end
+    @printf fo "POINT_DATA %i\n" nₚ
+    @printf fo "SCALARS εᵖ float 1\n"
+    @printf fo "LOOKUP_TABLE default\n"
+    for p in nodes
+        @printf fo "%f\n" p.d₁
+    end
+    @printf fo "SCALARS εᵖ₂₂ float 1\n"
+    @printf fo "LOOKUP_TABLE default\n"
+    for p in nodes
+        @printf fo "%f\n" p.d₂
+    end
+    @printf fo "CELL_DATA %i\n" nₑ
+    @printf fo "TENSORS STRESS float\n"
+    for ap in elements["Ω"]
         𝓒 = ap.𝓒
         𝓖 = ap.𝓖
-    
         for (i,ξ) in enumerate(𝓖)
             if i == 1
                 B₁ = ξ[:∂𝝭∂x]
@@ -122,22 +183,16 @@ for n in 1:total_steps
                     ε₂₂ += B₂[j]*xⱼ.d₂
                     ε₁₂ += B₁[j]*xⱼ.d₂ + B₂[j]*xⱼ.d₁
                 end
-                @printf "%i\n" n 
-                ξ.ε₁₁ = ε₁₁
-                σ₁₁ = ξ.σ₁₁
-                σ[n+1] = σ₁₁
-                ε[n+1] = ε₁₁
-               
-                
+                εᵖ₁₁ = ξ.εᵖ₁₁
+                εᵖ₂₂ = ξ.εᵖ₂₂
+                εᵖ₁₂ = ξ.εᵖ₁₂
+                @printf fo "%f %f %f\n" εᵖ₁₁ εᵖ₁₂ 0.0
+                @printf fo "%f %f %f\n" εᵖ₁₂ εᵖ₂₂ 0.0
+                @printf fo "%f %f %f\n" 0.0 0.0 0.0
                 break
             end
         end
-   
-    end 
-end
-#println(σ)
-#println(ε)
-f = Figure()
-Axis(f[1,1])
-scatterlines!(ε,σ)
-f
+    end
+    close(fo)
+
+end    
