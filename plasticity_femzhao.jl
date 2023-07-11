@@ -15,9 +15,9 @@ E = 1.0
 ν = 0.3
 λ = E*ν/(1.0+ν)/(1.0-2.0*ν)
 μ = 0.5*E/(1.0+ν)
-c = 1.0
-𝜙 = 0.0
-F = 5.0
+c = 10.0
+𝜙 = 0.6
+F =30
 
 tol = 1e-13
 
@@ -87,7 +87,7 @@ for n in 1:total_steps
         i += 1
         fill!(k,0.0)
         fill!(fint,0.0)
-        ops[4].(elements["Ω"];k=k,fint=fint)
+        ops[1].(elements["Ω"];k=k,fint=fint)
         Δd .= (k+kα)\(fext-fint+fα)
         d  .+= Δd
         Δd₁ .= Δd[1:2:2*nₚ]
@@ -101,9 +101,9 @@ for n in 1:total_steps
         if Δdnorm < 1e3*tol
             break
         end
-        if Δdnorm > 1e5
-            error("can not converge!")
-        end
+       # if Δdnorm > 1e5
+       #     error("can not converge!")
+       # end
     end
 
     for ap in elements["Ω"][1:1]
@@ -135,8 +135,8 @@ for n in 1:total_steps
    
     end 
 end
-println(σ)
-println(ε)
+#println(σ)
+#println(ε)
 f = Figure()
 Axis(f[1,1])
 scatterlines!(ε,σ)
