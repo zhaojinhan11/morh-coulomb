@@ -16,8 +16,8 @@ E = 1.0
 λ = E*ν/(1.0+ν)/(1.0-2.0*ν)
 μ = 0.5*E/(1.0+ν)
 c = 10.0
-𝜙 = 0.6
-F =30
+𝜙 = 0
+F =20
 
 tol = 1e-13
 
@@ -106,7 +106,7 @@ for n in 1:total_steps
        # end
     end
 
-    for ap in elements["Ω"][1:1]
+    for ap in elements["Ω"][]
         𝓒 = ap.𝓒
         𝓖 = ap.𝓖
     
