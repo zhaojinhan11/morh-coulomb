@@ -31,8 +31,8 @@ Plane Surface(1) = {1, 2};
 //+
 Transfinite Surface {1};
 //+
-Physical Curve("Γᵗ") = {5};
+Physical Curve("Γᵗ") = {2,4};
 //+
-Physical Curve("Γ") = {1,3};
+Physical Curve("Γ") = {3};
 //+
 Physical Surface("Ω") = {1};

@@ -1,4 +1,4 @@
-using Revise, ApproxOperator, BenchmarkTools
+using Revise, ApproxOperator, BenchmarkTools,TensorOperations
 include("importmsh.jl")
 
 elements,nodes = importmsh_fem("./msh/stretch_test_5.msh")

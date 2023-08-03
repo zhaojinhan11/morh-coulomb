@@ -2,31 +2,40 @@
 using Revise, ApproxOperator, LinearAlgebra, Printf
 using CairoMakie
 include("importmshzhao.jl") 
-elements,nodes = import_fem("./msh/mc2.msh")
+elements,nodes = import_fem("./msh/mc2_dense.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 # set shape functions
 set𝝭!.(elements["Ω"])
 set∇𝝭!.(elements["Ω"])
-set𝝭!.(elements["Γ"])
+set𝝭!.(elements["Γ¹"])
+set𝝭!.(elements["Γ²"])
 set𝝭!.(elements["Γᵗ"])
 # material coefficients
 E = 14
 ν = 0.3
 λ = E*ν/(1.0+ν)/(1.0-2.0*ν)
 μ = 0.5*E/(1.0+ν)
-c = 10.0
-𝜙 = 0.5235
-F =5
+c = 10
+#λ = 7.69
+#μ = 6.52
+#c = 18.5
+𝜙 = π/3.0
+
 
 tol = 1e-13
 
 # prescribe
-prescribe!(elements["Γ"],:g₁=>(x,y,z)->0.0)
-prescribe!(elements["Γ"],:g₂=>(x,y,z)->0.0)
-prescribe!(elements["Γ"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
-prescribe!(elements["Γ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
-prescribe!(elements["Γ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+prescribe!(elements["Γ¹"],:g₁=>(x,y,z)->0.0)
+prescribe!(elements["Γ¹"],:g₂=>(x,y,z)->0.0)
+prescribe!(elements["Γ¹"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
+prescribe!(elements["Γ¹"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
+prescribe!(elements["Γ¹"],:n₂₂=>(x,y,z,n₁,n₂)->0.0)
+prescribe!(elements["Γ²"],:g₁=>(x,y,z)->0.0)
+prescribe!(elements["Γ²"],:g₂=>(x,y,z)->0.0)
+prescribe!(elements["Γ²"],:n₁₁=>(x,y,z,n₁,n₂)->.0)
+prescribe!(elements["Γ²"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
+prescribe!(elements["Γ²"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
 prescribe!(elements["Ω"],:σ₁₁=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₂₂=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₃₃=>(x,y,z)->0.0)
@@ -67,7 +76,8 @@ push!(nodes,:d₁=>d₁,:d₂=>d₂)
 push!(nodes,:Δd₂=>Δd₂)
 push!(nodes,:Δd₁=>Δd₁)
 
-total_steps = 10
+F =8
+total_steps = 50
 max_iter = 10
 
 σ = zeros(total_steps+1)
@@ -79,7 +89,8 @@ for n in 1:total_steps
     @printf "Load step=%i, f=%e \n" n F*n/total_steps
     prescribe!(elements["Γᵗ"],:t₂=>(x,y,z)->0.0)
     ops[3](elements["Γᵗ"],fext)
-    ops[2](elements["Γ"],kα,fα)#什么时候加f什么时候加k
+    ops[2](elements["Γ¹"],kα,fα)
+    ops[2](elements["Γ²"],kα,fα)
     i = 0
     Δdnorm = 0.0
     fnorm = 0.0
@@ -101,98 +112,110 @@ for n in 1:total_steps
         if Δdnorm < 1e3*tol
             break
         end
-       # if Δdnorm > 1e5
-       #     error("can not converge!")
-       # end
-    end
-
-   # for ap in elements["Ω"]
-   #     𝓒 = ap.𝓒
-   #     𝓖 = ap.𝓖
-   # 
-   #     for (i,ξ) in enumerate(𝓖)
-   #         if i == 1
-   #             B₁ = ξ[:∂𝝭∂x]
-   #             B₂ = ξ[:∂𝝭∂y]
-   #             ε₁₁ = 0.0
-   #             ε₂₂ = 0.0
-   #             ε₁₂ = 0.0
-   #             for (j,xⱼ) in enumerate(𝓒)
-   #                 ε₁₁ += B₁[j]*xⱼ.d₁
-   #                 ε₂₂ += B₂[j]*xⱼ.d₂
-   #                 ε₁₂ += B₁[j]*xⱼ.d₂ + B₂[j]*xⱼ.d₁
-   #             end
-   #             @printf "%i\n" n 
-   #             ξ.ε₁₁ = ε₁₁
-   #             σ₁₁ = ξ.σ₁₁
-   #             σ[n+1] = σ₁₁
-   #             ε[n+1] = ε₁₁
-   #            
-   #             
-   #             break
-   #         end
-   #     end
-   #
-   # end 
-   #println(σ)
-   #println(ε)
-
-   #f = Figure()
-   #Axis(f[1,1])
-   #scatterlines!(ε,σ)
-   #f
-fo = open("./vtk/mctest2/figure"*string(n,pad=4)*".vtk","w")
-    @printf fo "# vtk DataFile Version 2.0\n"
-    @printf fo "Test\n"
-    @printf fo "ASCII\n"
-    @printf fo "DATASET POLYDATA\n"
-    @printf fo "POINTS %i float\n" nₚ
-    for p in nodes
-        @printf fo "%f %f %f\n" p.x p.y p.z
-    end
-    @printf fo "POLYGONS %i %i\n" nₑ 4*nₑ
-    for ap in elements["Ω"]
-        𝓒 = ap.𝓒
-        @printf fo "%i %i %i %i\n" 3 (x.𝐼-1 for x in 𝓒)...
-    end
-    @printf fo "POINT_DATA %i\n" nₚ
-    @printf fo "SCALARS UX float 1\n"
-    @printf fo "LOOKUP_TABLE default\n"
-    for p in nodes
-        @printf fo "%f\n" p.d₁
-    end
-    @printf fo "SCALARS UY float 1\n"
-    @printf fo "LOOKUP_TABLE default\n"
-    for p in nodes
-        @printf fo "%f\n" p.d₂
-    end
-    @printf fo "CELL_DATA %i\n" nₑ
-    @printf fo "TENSORS PLASTIC STRAIN float\n"
-    for ap in elements["Ω"]
-        𝓒 = ap.𝓒
-        𝓖 = ap.𝓖
-        for (i,ξ) in enumerate(𝓖)
-            if i == 1
-                B₁ = ξ[:∂𝝭∂x]
-                B₂ = ξ[:∂𝝭∂y]
-                ε₁₁ = 0.0
-                ε₂₂ = 0.0
-                ε₁₂ = 0.0
-                for (j,xⱼ) in enumerate(𝓒)
-                    ε₁₁ += B₁[j]*xⱼ.d₁
-                    ε₂₂ += B₂[j]*xⱼ.d₂
-                    ε₁₂ += B₁[j]*xⱼ.d₂ + B₂[j]*xⱼ.d₁
-                end
-                εᵖ₁₁ = ξ.εᵖ₁₁
-                εᵖ₂₂ = ξ.εᵖ₂₂
-                εᵖ₁₂ = ξ.εᵖ₁₂
-                @printf fo "%f %f %f\n" εᵖ₁₁ εᵖ₁₂ 0.0
-                @printf fo "%f %f %f\n" εᵖ₁₂ εᵖ₂₂ 0.0
-                @printf fo "%f %f %f\n" 0.0 0.0 0.0
-                break
-            end
+        if Δdnorm > 1e5
+          error("can not converge!")
         end
-    end
-    close(fo)
+      if n>34
+           if i===1               
+             fo = open("./vtk/mctest01/figure"*string(n,pad=4)*".vtk","w")
+             @printf fo "# vtk DataFile Version 2.0\n"
+             @printf fo "Test\n"
+             @printf fo "ASCII\n"
+             @printf fo "DATASET POLYDATA\n"
+             @printf fo "POINTS %i float\n" nₚ
+             for p in nodes
+                 @printf fo "%f %f %f\n" p.x p.y p.z
+             end
+             @printf fo "POLYGONS %i %i\n" nₑ 4*nₑ
+             for ap in elements["Ω"]
+                 𝓒 = ap.𝓒
+                 @printf fo "%i %i %i %i\n" 3 (x.𝐼-1 for x in 𝓒)...
+             end
+             @printf fo "POINT_DATA %i\n" nₚ
+             @printf fo "SCALARS UX float 1\n"
+             @printf fo "LOOKUP_TABLE default\n"
+             for p in nodes
+                 @printf fo "%f\n" p.d₁
+             end
+             @printf fo "SCALARS UY float 1\n"
+             @printf fo "LOOKUP_TABLE default\n"
+             for p in nodes
+                 @printf fo "%f\n" p.d₂
+             end
+             @printf fo "CELL_DATA %i\n" nₑ
+             #@printf fo "TENSORS STRESS float\n"
+             @printf fo "TENSORS PLASTIC_STRAIN float\n"
+             for ap in elements["Ω"]
+                 𝓒 = ap.𝓒
+                 𝓖 = ap.𝓖
+                 for (i,ξ) in enumerate(𝓖)
+                     if i == 1
+                         B₁ = ξ[:∂𝝭∂x]
+                         B₂ = ξ[:∂𝝭∂y]
+                         ε₁₁ = 0.0
+                         ε₂₂ = 0.0
+                         ε₁₂ = 0.0
+                         for (j,xⱼ) in enumerate(𝓒)
+                             ε₁₁ += B₁[j]*xⱼ.d₁
+                             ε₂₂ += B₂[j]*xⱼ.d₂
+                             ε₁₂ += B₁[j]*xⱼ.d₂ + B₂[j]*xⱼ.d₁
+                         end
+                         εᵖ₁₁ = ξ.εᵖ₁₁
+                         εᵖ₂₂ = ξ.εᵖ₂₂
+                         εᵖ₁₂ = ξ.εᵖ₁₂
+                         #σ₁₁ = ξ.σ₁₁
+                         #σ₂₂ = ξ.σ₂₂
+                         #σ₁₂ = ξ.σ₁₂
+                         #@printf fo "%f %f %f\n" σ₁₁ σ₁₂ 0.0
+                         #@printf fo "%f %f %f\n" σ₁₂ σ₂₂ 0.0
+                         #@printf fo "%f %f %f\n" 0.0 0.0 0.0
+                        @printf fo "%f %f %f\n" εᵖ₁₁ εᵖ₁₂ 0.0
+                        @printf fo "%f %f %f\n" εᵖ₁₂ εᵖ₂₂ 0.0
+                        @printf fo "%f %f %f\n" 0.0 0.0 0.0 
+                         break
+                     end
+                 end
+             end
+             close(fo)
+          end
+         
+
+#    for ap in elements["Ω"]
+#        𝓒 = ap.𝓒
+#        𝓖 = ap.𝓖
+#    
+#        for (i,ξ) in enumerate(𝓖)
+#            if i == 1
+#                B₁ = ξ[:∂𝝭∂x]
+#                B₂ = ξ[:∂𝝭∂y]
+#                ε₁₁ = 0.0
+#                ε₂₂ = 0.0
+#                ε₁₂ = 0.0
+#                for (j,xⱼ) in enumerate(𝓒)
+#                    ε₁₁ += B₁[j]*xⱼ.d₁
+#                    ε₂₂ += B₂[j]*xⱼ.d₂
+#                    ε₁₂ += B₁[j]*xⱼ.d₂ + B₂[j]*xⱼ.d₁
+#                end
+#                @printf "%i\n" n 
+#                ξ.ε₁₁ = ε₁₁
+#                σ₁₁ = ξ.σ₁₁
+#                σ[n+1] = σ₁₁
+#                ε[n+1] = ε₁₁
+#               
+#                
+#                break
+#            end
+#        end
+#   
+#    end 
+# 
+#end
+#println(σ)
+#println(ε)
+#f = Figure()
+#Axis(f[1,1])
+#scatterlines!(ε,σ)
+#f
+
 
 end    
