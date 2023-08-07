@@ -53,7 +53,7 @@ for n in 1:total_steps
     prescribe!(elements["Γ"],:g=>(x,y,z)->((1+n*Δt)*x))
     ops[6](elements["Γ"],kα,fα)
 
-    @printf "Load step=%i, f=%e \n" n (1+n*Δt)
+   
 
     iter = 0
     normΔ = 1.0
