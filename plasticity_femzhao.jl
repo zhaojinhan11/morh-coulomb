@@ -106,14 +106,18 @@ for n in 1:total_steps
         d₁ .+= Δd₁
         d₂ .+= Δd₂
         # println(d₁)
+        normΔd = norm(Δd)
+        #@printf("i = %3i, normΔd = %10.2e\n", i, normΔd)
+        normfext = norm(fext)
+        @printf("i = %3i, normfext = %10.2e\n", i, normfext)
         
         Δdnorm = LinearAlgebra.norm(Δd)#Δdde 范数衡量向量的大小
-        @printf "Iterator step=%i, Δdnorm=%e \n" i Δdnorm
+        #@printf "Iterator step=%i, Δdnorm=%e \n" i Δdnorm
         if Δdnorm < 1e3*tol
             break
         end
         if Δdnorm > 1e5
-          error("can not converge!")
+          error("can not  converge!")
         end
       if n>34
            if i===1               
@@ -178,8 +182,8 @@ for n in 1:total_steps
              end
              close(fo)
           end
-         
-
+        end 
+     end
 #    for ap in elements["Ω"]
 #        𝓒 = ap.𝓒
 #        𝓖 = ap.𝓖

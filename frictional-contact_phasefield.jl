@@ -2,7 +2,7 @@
 using Revise, ApproxOperator, LinearAlgebra, Printf
 using CairoMakie
 include("importmsh_phasefield.jl") 
-elements,nodes = import_fem("./msh/phasefield.msh")
+elements,nodes = import_fem("./msh/phasefield3")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 # set shape functions
@@ -12,7 +12,7 @@ set𝝭!.(elements["Γᵍ"])
 set𝝭!.(elements["Γᵛ"])
 set𝝭!.(elements["Γ"])
 # material coefficients
-E = 14
+E = 10
 ν = 0.3
 λ = E*ν/(1.0+ν)/(1.0-2.0*ν)
 μ = 0.5*E/(1.0+ν)
@@ -20,7 +20,7 @@ E = 14
 η = 1e-6
 kc = 100.0
 l = 0.1
-μ̄  = 0.1
+μ̄  = 0.5
 tol = 1e-13
 coefficient = (:η=>η,:k=>kc,:l=>l,:μ̄ =>μ̄ ,:tol=>tol,:λ=>λ,:μ=>μ,)
 
@@ -30,8 +30,7 @@ prescribe!(elements["Γ"],:g₂=>(x,y,z)->0.0)
 prescribe!(elements["Γ"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
 prescribe!(elements["Γ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
 prescribe!(elements["Γ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
-
-prescribe!(elements["Γᵛ"],:g=>(x,y,z)->1.0)
+prescribe!(elements["Γᵛ"],:g=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₁₁=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₂₂=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₃₃=>(x,y,z)->0.0)
@@ -48,13 +47,16 @@ prescribe!(elements["Ω"],:ℋ=>(x,y,z)->0.0)
 
 # assembly
 f = zeros(2*nₚ)
+k₂ = zeros(nₚ,nₚ)
+f₂ = zeros(nₚ)
+dᵥ = zeros(nₚ)
 fint = zeros(2*nₚ)
 fext = zeros(2*nₚ)
 k = zeros(2*nₚ,2*nₚ)
 kα = zeros(2*nₚ,2*nₚ)
 fα = zeros(2*nₚ)
-kvα = zeros(2*nₚ,2*nₚ)
-fvα = zeros(2*nₚ)
+kvα = zeros(nₚ,nₚ)
+fvα = zeros(nₚ)
 kᵍ  = zeros(2*nₚ,2*nₚ)
 d = zeros(2*nₚ)
 Δd = zeros(2*nₚ)
@@ -63,7 +65,8 @@ d = zeros(2*nₚ)
 d₁ = zeros(nₚ)
 d₂ = zeros(nₚ)
 u = zeros(2*nₚ)
-v = ones(2*nₚ)
+v = ones(nₚ)
+
 push!(nodes,:d=>d)
 push!(nodes,:Δd=>Δd)
 push!(nodes,:d₁=>d₁,:d₂=>d₂)
@@ -79,115 +82,149 @@ ops = [
     Operator{:∫vᵢgᵢds}(:α=>1e13),
     Operator{:∫vgdΓ}(:α=>1e13),
     Operator{:∫∫∇v∇vvvdxdy}(coefficient...),
-    Operator{:UPDATE_PFM_2D}(coefficient...),
+    Operator{:UPDATE_PFM_2D}(coefficient...),    
+    Operator{:∫∫εᵢⱼσᵢⱼdxdy}(),  
     Operator{:∫vᵢtᵢds}(),
-    
 ]
 
-max_iter = 1000
-Δt = 1
-T = 50
+max_iter = 30
+Δt = 0.001
+T = 0.1
 total_steps = round(Int,T/Δt)
 
 𝑡 = zeros(total_steps+1)
 Ep = zeros(total_steps+1) # potential energy
 Ed = zeros(total_steps+1) # dissipation energy
 Et = zeros(total_steps+1) # total energy
-
+σ = zeros(total_steps+1)
+ε = zeros(total_steps+1)
 
 for n in 1:total_steps
-    fill!(fext,0.0)
-    fill!(kα,0.0)
-    fill!(fα,0.0)
-    prescribe!(elements["Γᵍ"],:g₁=>(x,y,z)->0.0)
-    prescribe!(elements["Γᵍ"],:g₂=>(x,y,z)->((1+n*Δt)*y))
-    prescribe!(elements["Γᵍ"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
-    prescribe!(elements["Γᵍ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
-    prescribe!(elements["Γᵍ"],:n₂₂=>(x,y,z,n₁,n₂)->0.0)
-    ops[2](elements["Γ"],kα,fα)
-    ops[3](elements["Γᵛ"],kvα,fvα)
-    ops[6](elements["Γᵍ"],kᵍ,fext)
+ fill!(fext,0.0)
+ fill!(kα,0.0)
+ fill!(fα,0.0)
+ fill!(kvα,0.0)
+ fill!(fvα,0.0)
+ #prescribe!(elements["Γᵍ"],:t₁=>(x,y,z)->0.0)
+ #@printf "Load step=%i, f=%e \n" n T*n/total_steps
+ #prescribe!(elements["Γᵍ"],:t₂=>(x,y,z)->T*n/total_steps)
 
+ prescribe!(elements["Γᵍ"],:g₁=>(x,y,z)->0.0)
+ prescribe!(elements["Γᵍ"],:g₂=>(x,y,z)->((1+n*Δt)*y))
+ prescribe!(elements["Γᵍ"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
+ prescribe!(elements["Γᵍ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
+ prescribe!(elements["Γᵍ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+ ops[2](elements["Γ"],kα,fα)
+ ops[2](elements["Γᵍ"],kᵍ,fext)
+ #ops[7](elements["Γᵍ"],fext)
+ @printf "Load step=%i, f=%e \n" n (n*Δt)
+ iter = 0
 
-    
-    @printf "Load step=%i, f=%e \n" n (1+n*Δt)
-    iter = 0
-    normΔ = 1.0
-    while normΔ > tol && iter ≤ max_iter  #同时满足
-        iter += 1
-        # plasticity
-        normΔd = 1.0
-        while normΔd > tol
-            fill!(k,0.0)
-            fill!(fint,0.0)
-            ops[1].(elements["Ω"];k=k,fint=fint)
-
-            Δd .= (k+kα+kᵍ)\(fext-fint+fα)
-            d  .+= Δd
-            Δd₁ .= Δd[1:2:2*nₚ]
-            Δd₂ .= Δd[2:2:2*nₚ]
-            d₁ .+= Δd₁
-            d₂ .+= Δd₂
-            normΔd = norm(Δd)
-            
-            @printf("iter = %3i, normΔd = %10.2e\n", iter, normΔd)
-        end
-
+ normΔ = 1.0
+ while normΔ > tol && iter ≤ max_iter  #同时满足
+      iter += 1
         # phase field
-        fill!(k,0.0)
-        fill!(f,0.0)
-        ops[4](elements["Ω"],k,f)
-        d .= (k+kvα)\(f+fvα)
-        normΔv = norm(v .- d)
-        v .= d
+        fill!(k₂,0.0)
+        fill!(f₂,0.0)
+        ops[4](elements["Ω"],k₂,f₂)
+        ops[3](elements["Γᵛ"],kvα,fvα)
+        dᵥ = (k₂+kvα)\(fvα+f₂)
+        normΔv = norm(v - dᵥ )
+        v .= dᵥ
+       # update variables
+       normΔ = normΔv 
+       @printf("iter = %3i, normΔv  = %10.2e\n", iter , normΔv )  
+      
 
-        # update variables
-        normΔ = normΔv 
-        @printf("iter = %3i, normΔ = %10.2e\n", iter, normΔ)
+     # plasticity
+     normΔd = 1.0
+     iter₂ = 0
+     while normΔd > tol
+         iter₂ += 1
+         fill!(k,0.0)
+         fill!(fint,0.0)
+         ops[6].(elements["Ω"];k=k,fint=fint)
+         Δd .= (k+kα+kᵍ)\(fext-fint+fα)
+         d  .+= Δd
+         Δd₁ .= Δd[1:2:2*nₚ]
+         Δd₂ .= Δd[2:2:2*nₚ]
+         d₁ .+= Δd₁
+         d₂ .+= Δd₂
+         normΔd = norm(Δd)
+         @printf("iter₂ = %3i, normΔd = %10.2e\n", iter₂ , normΔd)   
+         # println(k)
+         # println(v)
+         #if iter₂ ==  1
+         #   break
+         #   
+         #end
+         #if iter₂>2
+         #   break
+         #end
+      end
+     
+    
+    end
+    for ap in elements["Ω"]
+        𝓒 = ap.𝓒
+        𝓖 = ap.𝓖
+    
+        for (i,ξ) in enumerate(𝓖)
+            if i == 1
+                B₁ = ξ[:∂𝝭∂x]
+                B₂ = ξ[:∂𝝭∂y]
+                ε₁₁ = 0.0
+                ε₂₂ = 0.0
+                ε₁₂ = 0.0
+                for (j,xⱼ) in enumerate(𝓒)
+                    ε₁₁ += B₁[j]*xⱼ.d₁
+                    ε₂₂ += B₂[j]*xⱼ.d₂
+                    ε₁₂ += B₁[j]*xⱼ.d₂ + B₂[j]*xⱼ.d₁
+                end
+                #@printf "%i\n" n 
+                ξ.ε₁₁ = ε₁₁
+                σ₁₁ = ξ.σ₁₁
+                σ[n+1] = σ₁₁
+                ε[n+1] = ε₁₁
+               
+                
+                break
+            end
+        end
+   
     end 
-     Ep_ = 0.0
-     Ed_ = 0.0
-     for ap in elements["Ω"]
-         𝓒 = ap.𝓒;𝓖 = ap.𝓖
-         for ξ in 𝓖
-             𝑤 = ξ.𝑤
-             N = ξ[:𝝭]
-             B₁ = ξ[:∂𝝭∂x]
-             B₂ = ξ[:∂𝝭∂y]
-             v_ = 0.0
-             dv_ = 0.0
-             dv₁_ = 0.0
-             dv₂_ = 0.0
-             σ₁₁ = ξ.σ₁₁
-             σ₂₂ = ξ.σ₂₂
-             σ₁₂ = ξ.σ₁₂
-             ε₁₁_ = 0.0
-             ε₂₂_ = 0.0
-             ε₁₂_ = 0.0
-           
-             for (i,xᵢ) in enumerate(𝓒)
-                 v_ += N[i]*xᵢ.v
-                 dv₁_ += B₁[i]*xᵢ.v
-                 dv₂_ += B₂[i]*xᵢ.v
-                 ε₁₁_ += B₁[i]*xᵢ.d₁
-                 ε₂₂_ += B₂[i]*xᵢ.d₂
-                 ε₁₂_ += B₁[i]*xᵢ.d₂ + B₂[i]*xᵢ.d₁
-             end
-             Ep_ += (v_+η)^2*0.5*(ε₁₁_*σ₁₁ + ε₂₂_*σ₂₂ + ε₁₂_*σ₁₂)*𝑤
-             Ed_ += kc*((1-v_)^2/4/l+l*(dv₁_^2+dv₂_^2))*𝑤
-         end
-     end
-     𝑡[n+1] = n*Δt
-     Ep[n+1] = Ep_
-     Ed[n+1] = Ed_
-     Et[n+1] = Ep_ + Ed_
+   fo = open("./vtk/friction/figure"*string(n,pad=4)*".vtk","w")
+   @printf fo "# vtk DataFile Version 2.0\n"
+   @printf fo "Test\n"
+   @printf fo "ASCII\n"
+   @printf fo "DATASET POLYDATA\n"
+   @printf fo "POINTS %i float\n" nₚ
+    for p in nodes
+       @printf fo "%f %f %f\n" p.x p.y p.z
+   end
+   @printf fo "POLYGONS %i %i\n" nₑ 4*nₑ
+   for ap in elements["Ω"]
+       𝓒 = ap.𝓒
+       @printf fo "%i %i %i %i\n" 3 (x.𝐼-1 for x in 𝓒)...
+   end
+   @printf fo "POINT_DATA %i\n" nₚ
+   @printf fo "SCALARS UX float 1\n"
+   @printf fo "LOOKUP_TABLE default\n"
+   for p in nodes
+       @printf fo "%f\n" p.d₁
+   end
+   @printf fo "SCALARS UY float 1\n"
+   @printf fo "LOOKUP_TABLE default\n"
+   for p in nodes
+       @printf fo "%f\n" p.d₂
+    end
+ 
 end
-
+println(σ)
+println(ε)
 f = Figure()
-ax1 = Axis(f[1,1])
-scatterlines!(ax1,𝑡,Ep,label = "Potential Energy")
-scatterlines!(ax1,𝑡,Ed,label = "Dissipation Energy")
-scatterlines!(ax1,𝑡,Et,label = "Total Energy")
-axislegend(ax1)
+Axis(f[1,1])
+scatterlines!(ε,σ)
 f
+
 

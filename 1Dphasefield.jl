@@ -3,6 +3,7 @@ using ApproxOperator, LinearAlgebra, Printf, CairoMakie
 include("input.jl")
 elements, nodes = import_fem_1D("./msh/bar_100.msh")
 
+
 nₚ = length(nodes)
 nₑ = nₚ - 1
 
@@ -75,7 +76,7 @@ for n in 1:total_steps
         # phase field
         fill!(k,0.0)
         fill!(f,0.0)
-        ops[2](elements["Ω"],k,f)
+        ops[2](elements["Ω"],k,f)   
         d = k\f
         normΔv = norm(v .- d)
         v .= d
