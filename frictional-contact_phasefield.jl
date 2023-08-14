@@ -2,7 +2,7 @@
 using Revise, ApproxOperator, LinearAlgebra, Printf
 using CairoMakie
 include("importmsh_phasefield.jl") 
-elements,nodes = import_fem("./msh/phasefield3")
+elements,nodes = import_fem("./msh/phasefield3.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 # set shape functions
@@ -30,6 +30,10 @@ prescribe!(elements["Γ"],:g₂=>(x,y,z)->0.0)
 prescribe!(elements["Γ"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
 prescribe!(elements["Γ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
 prescribe!(elements["Γ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+prescribe!(elements["Γᵍ"],:g₁=>(x,y,z)->0.0)
+prescribe!(elements["Γᵍ"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
+prescribe!(elements["Γᵍ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
+prescribe!(elements["Γᵍ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
 prescribe!(elements["Γᵛ"],:g=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₁₁=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₂₂=>(x,y,z)->0.0)
@@ -46,13 +50,14 @@ prescribe!(elements["Ω"],:ℋ=>(x,y,z)->0.0)
 
 
 # assembly
-f = zeros(2*nₚ)
 k₂ = zeros(nₚ,nₚ)
 f₂ = zeros(nₚ)
 dᵥ = zeros(nₚ)
 fint = zeros(2*nₚ)
 fext = zeros(2*nₚ)
 k = zeros(2*nₚ,2*nₚ)
+k_ = zeros(2*nₚ,2*nₚ)
+f = zeros(2*nₚ)
 kα = zeros(2*nₚ,2*nₚ)
 fα = zeros(2*nₚ)
 kvα = zeros(nₚ,nₚ)
@@ -83,13 +88,13 @@ ops = [
     Operator{:∫vgdΓ}(:α=>1e13),
     Operator{:∫∫∇v∇vvvdxdy}(coefficient...),
     Operator{:UPDATE_PFM_2D}(coefficient...),    
-    Operator{:∫∫εᵢⱼσᵢⱼdxdy}(),  
+    Operator{:∫∫εᵢⱼσᵢⱼdxdy}(:E=>E,:ν=>ν),  
     Operator{:∫vᵢtᵢds}(),
 ]
 
-max_iter = 30
+max_iter = 1
 Δt = 0.001
-T = 0.1
+T = 0.001
 total_steps = round(Int,T/Δt)
 
 𝑡 = zeros(total_steps+1)
@@ -99,132 +104,103 @@ Et = zeros(total_steps+1) # total energy
 σ = zeros(total_steps+1)
 ε = zeros(total_steps+1)
 
-for n in 1:total_steps
- fill!(fext,0.0)
- fill!(kα,0.0)
- fill!(fα,0.0)
- fill!(kvα,0.0)
- fill!(fvα,0.0)
- #prescribe!(elements["Γᵍ"],:t₁=>(x,y,z)->0.0)
- #@printf "Load step=%i, f=%e \n" n T*n/total_steps
- #prescribe!(elements["Γᵍ"],:t₂=>(x,y,z)->T*n/total_steps)
+ops[2](elements["Γ"],kα,fα)
+# ops[3](elements["Γᵛ"],kvα,fvα)
+for n in 0:total_steps
+    fill!(fext,0.0)
+    fill!(kᵍ,0.0)
 
- prescribe!(elements["Γᵍ"],:g₁=>(x,y,z)->0.0)
- prescribe!(elements["Γᵍ"],:g₂=>(x,y,z)->((1+n*Δt)*y))
- prescribe!(elements["Γᵍ"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
- prescribe!(elements["Γᵍ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
- prescribe!(elements["Γᵍ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
- ops[2](elements["Γ"],kα,fα)
- ops[2](elements["Γᵍ"],kᵍ,fext)
- #ops[7](elements["Γᵍ"],fext)
- @printf "Load step=%i, f=%e \n" n (n*Δt)
- iter = 0
+    #prescribe!(elements["Γᵍ"],:t₁=>(x,y,z)->0.0)
+    #@printf "Load step=%i, f=%e \n" n T*n/total_steps
+    #prescribe!(elements["Γᵍ"],:t₂=>(x,y,z)->T*n/total_steps)
+    
+    prescribe!(elements["Γᵍ"],:g₂=>(x,y,z)->(n*Δt*y))
+    ops[2](elements["Γᵍ"],kᵍ,fext)
 
- normΔ = 1.0
- while normΔ > tol && iter ≤ max_iter  #同时满足
-      iter += 1
+    @printf "Load step=%i, f=%e \n" n (n*Δt)
+    iter = 0
+    
+    normΔ = 1.0
+    while normΔ > tol && iter < max_iter
+        iter += 1
         # phase field
         fill!(k₂,0.0)
         fill!(f₂,0.0)
         ops[4](elements["Ω"],k₂,f₂)
-        ops[3](elements["Γᵛ"],kvα,fvα)
-        dᵥ = (k₂+kvα)\(fvα+f₂)
+        dᵥ = (k₂+kvα)\(f₂+fvα)
         normΔv = norm(v - dᵥ )
         v .= dᵥ
-       # update variables
-       normΔ = normΔv 
-       @printf("iter = %3i, normΔv  = %10.2e\n", iter , normΔv )  
-      
+        # update variables
+        normΔ = normΔv 
+        @printf("iter = %3i, normΔv  = %10.2e\n", iter , normΔv )  
+         
+    
+        # plasticity
+        normΔd = 1.0
+        iter₂ = 0
+        while normΔd > tol && iter₂ < max_iter
+            iter₂ += 1
+            fill!(k,0.0)
+            fill!(fint,0.0)
+            ops[1].(elements["Ω"];k=k,fint=fint)
+            Δd .= (k+kα+kᵍ)\(fext-fint+fα)
+            d  .+= Δd
+            Δd₁ .= Δd[1:2:2*nₚ]
+            Δd₂ .= Δd[2:2:2*nₚ]
+            d₁ .+= Δd₁
+            d₂ .+= Δd₂
+            normΔd = norm(Δd)
+            @printf("iter₂ = %3i, normΔd = %10.2e\n", iter₂ , normΔd)   
 
-     # plasticity
-     normΔd = 1.0
-     iter₂ = 0
-     while normΔd > tol
-         iter₂ += 1
-         fill!(k,0.0)
-         fill!(fint,0.0)
-         ops[6].(elements["Ω"];k=k,fint=fint)
-         Δd .= (k+kα+kᵍ)\(fext-fint+fα)
-         d  .+= Δd
-         Δd₁ .= Δd[1:2:2*nₚ]
-         Δd₂ .= Δd[2:2:2*nₚ]
-         d₁ .+= Δd₁
-         d₂ .+= Δd₂
-         normΔd = norm(Δd)
-         @printf("iter₂ = %3i, normΔd = %10.2e\n", iter₂ , normΔd)   
-         # println(k)
-         # println(v)
-         #if iter₂ ==  1
-         #   break
-         #   
-         #end
-         #if iter₂>2
-         #   break
-         #end
-      end
-     
-    
-    end
-    for ap in elements["Ω"]
-        𝓒 = ap.𝓒
-        𝓖 = ap.𝓖
-    
-        for (i,ξ) in enumerate(𝓖)
-            if i == 1
-                B₁ = ξ[:∂𝝭∂x]
-                B₂ = ξ[:∂𝝭∂y]
-                ε₁₁ = 0.0
-                ε₂₂ = 0.0
-                ε₁₂ = 0.0
-                for (j,xⱼ) in enumerate(𝓒)
-                    ε₁₁ += B₁[j]*xⱼ.d₁
-                    ε₂₂ += B₂[j]*xⱼ.d₂
-                    ε₁₂ += B₁[j]*xⱼ.d₂ + B₂[j]*xⱼ.d₁
-                end
-                #@printf "%i\n" n 
-                ξ.ε₁₁ = ε₁₁
-                σ₁₁ = ξ.σ₁₁
-                σ[n+1] = σ₁₁
-                ε[n+1] = ε₁₁
-               
-                
-                break
+
+            fill!(k_,0.0)
+            ops[6](elements["Ω"],k_)
+            d_ = (k+kα+kᵍ)\(fext+fα)
+            if n == 0 && iter == 1 && iter₂ == 1
+                println(k-k_)
+                # println(fint)
+                # println(Δd-d_)
             end
         end
-   
-    end 
-   fo = open("./vtk/friction/figure"*string(n,pad=4)*".vtk","w")
-   @printf fo "# vtk DataFile Version 2.0\n"
-   @printf fo "Test\n"
-   @printf fo "ASCII\n"
-   @printf fo "DATASET POLYDATA\n"
-   @printf fo "POINTS %i float\n" nₚ
-    for p in nodes
-       @printf fo "%f %f %f\n" p.x p.y p.z
-   end
-   @printf fo "POLYGONS %i %i\n" nₑ 4*nₑ
-   for ap in elements["Ω"]
-       𝓒 = ap.𝓒
-       @printf fo "%i %i %i %i\n" 3 (x.𝐼-1 for x in 𝓒)...
-   end
-   @printf fo "POINT_DATA %i\n" nₚ
-   @printf fo "SCALARS UX float 1\n"
-   @printf fo "LOOKUP_TABLE default\n"
-   for p in nodes
-       @printf fo "%f\n" p.d₁
-   end
-   @printf fo "SCALARS UY float 1\n"
-   @printf fo "LOOKUP_TABLE default\n"
-   for p in nodes
-       @printf fo "%f\n" p.d₂
     end
- 
+
+    fo = open("./vtk/friction/figure"*string(n,pad=4)*".vtk","w")
+    @printf fo "# vtk DataFile Version 2.0\n"
+    @printf fo "Test\n"
+    @printf fo "ASCII\n"
+    @printf fo "DATASET POLYDATA\n"
+    @printf fo "POINTS %i float\n" nₚ
+    for p in nodes
+        @printf fo "%f %f %f\n" p.x p.y p.z
+    end
+    @printf fo "POLYGONS %i %i\n" nₑ 4*nₑ
+    for ap in elements["Ω"]
+        𝓒 = ap.𝓒
+        @printf fo "%i %i %i %i\n" 3 (x.𝐼-1 for x in 𝓒)...
+    end
+    @printf fo "POINT_DATA %i\n" nₚ
+    @printf fo "SCALARS UX float 1\n"
+    @printf fo "LOOKUP_TABLE default\n"
+    for p in nodes
+        @printf fo "%f\n" p.d₁
+    end
+    @printf fo "SCALARS UY float 1\n"
+    @printf fo "LOOKUP_TABLE default\n"
+    for p in nodes
+        @printf fo "%f\n" p.d₂
+    end
+    @printf fo "SCALARS DAMAGE float 1\n"
+    @printf fo "LOOKUP_TABLE default\n"
+    for p in nodes
+        @printf fo "%f\n" p.v
+    end
+    close(fo)
 end
-println(σ)
-println(ε)
-f = Figure()
-Axis(f[1,1])
-scatterlines!(ε,σ)
-f
+# println(σ)
+# println(ε)
+# f = Figure()
+# Axis(f[1,1])
+# scatterlines!(ε,σ)
+# f
 
 
