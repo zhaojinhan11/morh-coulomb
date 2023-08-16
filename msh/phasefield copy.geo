@@ -23,29 +23,21 @@ Line(4) = {3, 4};
 //+
 Line(5) = {4, 1};
 //+
-Line(6) = {1, 5};
-//+
-Line(7) = {6, 3};
-//+
-Transfinite Curve {5, 4, 3, 2, 6, 7} = 10 Using Progression 1;
+Transfinite Curve {5, 4, 3, 2} = 10 Using Progression 1;
 //+
 Transfinite Curve {1} = 30 Using Progression 1;
 //+
-Curve Loop(1) = {4, 5, 6, 1, 7};
+Curve Loop(1) = {2, 3, 4, 5};
 //+
 Plane Surface(1) = {1};
 //+
-Curve Loop(2) = {3, -7, -1, -6, 2};
-//+
-Plane Surface(2) = {2};
+Point {5} In Surface{1};
+Point {6} In Surface{1};
+Line {1} In Surface{1};
+
 //+
 Transfinite Surface {1};
-//+
-Transfinite Surface {2};
-//+
-Line{1} In Surface{1};
-//+
-Line{1} In Surface{2};
+
 //+
 Physical Curve("Γ") = {2};
 //+
@@ -53,4 +45,4 @@ Physical Curve("Γᵛ") = {1};
 //+
 Physical Curve("Γᵍ") = {4};
 //+
-Physical Surface("Ω") = {1,2};
+Physical Surface("Ω") = {1};

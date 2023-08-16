@@ -93,7 +93,7 @@ ops = [
 ]
 
 max_iter = 1
-Δt = 0.001
+Δt = 0.01
 T = 0.001
 total_steps = round(Int,T/Δt)
 
