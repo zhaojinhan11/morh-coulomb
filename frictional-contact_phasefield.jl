@@ -12,16 +12,16 @@ set𝝭!.(elements["Γᵍ"])
 set𝝭!.(elements["Γᵛ"])
 set𝝭!.(elements["Γ"])
 # material coefficients
-E = 10
+E = 1E6
 ν = 0.3
 λ = E*ν/(1.0+ν)/(1.0-2.0*ν)
 μ = 0.5*E/(1.0+ν)
 
 η = 1e-6
-kc = 100.0
+kc = 1E4
 l = 0.1
 μ̄  = 0.5
-tol = 1e-13
+tol = 1e-9
 coefficient = (:η=>η,:k=>kc,:l=>l,:μ̄ =>μ̄ ,:tol=>tol,:λ=>λ,:μ=>μ,)
 
 # prescribe
@@ -72,11 +72,9 @@ d₂ = zeros(nₚ)
 u = zeros(2*nₚ)
 v = ones(nₚ)
 
-push!(nodes,:d=>d)
-push!(nodes,:Δd=>Δd)
 push!(nodes,:d₁=>d₁,:d₂=>d₂)
-push!(nodes,:Δd₂=>Δd₂)
 push!(nodes,:Δd₁=>Δd₁)
+push!(nodes,:Δd₂=>Δd₂)
 push!(nodes,:u=>u)
 push!(nodes,:v=>v)
 
@@ -92,9 +90,11 @@ ops = [
     Operator{:∫vᵢtᵢds}(),
 ]
 
-max_iter = 1
-Δt = 0.01
-T = 0.001
+max_iter = 10
+# Δt = 0.1
+# T = 1.0
+Δt = 0.001
+T = 0.002
 total_steps = round(Int,T/Δt)
 
 𝑡 = zeros(total_steps+1)
@@ -127,13 +127,14 @@ for n in 0:total_steps
         fill!(k₂,0.0)
         fill!(f₂,0.0)
         ops[4](elements["Ω"],k₂,f₂)
-        dᵥ = (k₂+kvα)\(f₂+fvα)
-        normΔv = norm(v - dᵥ )
+        ops[3](elements["Γᵛ"],kvα,fvα)
+        dᵥ .= (k₂+kvα)\(f₂+fvα)
+        normΔv = norm(v - dᵥ)/norm(v)
         v .= dᵥ
+
         # update variables
         normΔ = normΔv 
-        @printf("iter = %3i, normΔv  = %10.2e\n", iter , normΔv )  
-         
+        @printf("iter = %3i, normΔv = %10.2e\n", iter , normΔv)   
     
         # plasticity
         normΔd = 1.0
@@ -143,24 +144,31 @@ for n in 0:total_steps
             fill!(k,0.0)
             fill!(fint,0.0)
             ops[1].(elements["Ω"];k=k,fint=fint)
-            Δd .= (k+kα+kᵍ)\(fext-fint+fα)
-            d  .+= Δd
+            if iter₂ == 1
+                Δd .= (k+kα+kᵍ)\(fext-fint+fα)
+            else
+                Δd .= (k+kα+kᵍ)\(-fint)
+            end
+
             Δd₁ .= Δd[1:2:2*nₚ]
             Δd₂ .= Δd[2:2:2*nₚ]
             d₁ .+= Δd₁
             d₂ .+= Δd₂
+            # normΔd = norm(Δd)/(norm(d₁) + norm(d₂))
             normΔd = norm(Δd)
+
             @printf("iter₂ = %3i, normΔd = %10.2e\n", iter₂ , normΔd)   
 
 
-            fill!(k_,0.0)
-            ops[6](elements["Ω"],k_)
-            d_ = (k+kα+kᵍ)\(fext+fα)
-            if n == 0 && iter == 1 && iter₂ == 1
-                println(k-k_)
-                # println(fint)
-                # println(Δd-d_)
-            end
+            # fill!(k_,0.0)
+            # ops[6](elements["Ω"],k_)
+            # d_ = (k+kα+kᵍ)\(fext+fα)
+            # if n == 1 && iter == 1 && iter₂ == 1
+            #    println(k-k_)
+            #    println(fint)
+            #    println(Δd-d_)
+            # end
+
         end
     end
 
