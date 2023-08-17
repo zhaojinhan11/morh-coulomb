@@ -92,9 +92,9 @@ ops = [
     Operator{:∫vᵢtᵢds}(),
 ]
 
-max_iter = 1
-Δt = 0.01
-T = 0.001
+max_iter = 10
+Δt = 0.001
+T = 0.01
 total_steps = round(Int,T/Δt)
 
 𝑡 = zeros(total_steps+1)
@@ -127,13 +127,13 @@ for n in 0:total_steps
         fill!(k₂,0.0)
         fill!(f₂,0.0)
         ops[4](elements["Ω"],k₂,f₂)
+        ops[3](elements["Γᵛ"],kvα,fvα)
         dᵥ = (k₂+kvα)\(f₂+fvα)
         normΔv = norm(v - dᵥ )
         v .= dᵥ
         # update variables
         normΔ = normΔv 
-        @printf("iter = %3i, normΔv  = %10.2e\n", iter , normΔv )  
-         
+        @printf("iter = %3i, normΔv = %10.2e\n", iter , normΔv)   
     
         # plasticity
         normΔd = 1.0
@@ -145,56 +145,62 @@ for n in 0:total_steps
             ops[1].(elements["Ω"];k=k,fint=fint)
             Δd .= (k+kα+kᵍ)\(fext-fint+fα)
             d  .+= Δd
-            Δd₁ .= Δd[1:2:2*nₚ]
-            Δd₂ .= Δd[2:2:2*nₚ]
-            d₁ .+= Δd₁
-            d₂ .+= Δd₂
+            #Δd₁ .= Δd[1:2:2*nₚ]
+            #Δd₂ .= Δd[2:2:2*nₚ]
+            d₁ = d[1:2:2*nₚ]
+            d₂ = d[2:2:2*nₚ]
             normΔd = norm(Δd)
-            @printf("iter₂ = %3i, normΔd = %10.2e\n", iter₂ , normΔd)   
+
+           @printf("iter₂ = %3i, normΔd = %10.2e\n", iter₂ , normΔd)   
 
 
-            fill!(k_,0.0)
-            ops[6](elements["Ω"],k_)
-            d_ = (k+kα+kᵍ)\(fext+fα)
-            if n == 0 && iter == 1 && iter₂ == 1
-                println(k-k_)
-                # println(fint)
-                # println(Δd-d_)
+            #fill!(k_,0.0)
+            #ops[6](elements["Ω"],k_)
+            #d_ = (k+kα+kᵍ)\(fext+fα)
+            #if n == 1 && iter == 1 && iter₂ == 1
+            #    #println(k-k_)
+            #    # println(fint)
+            #    #println(Δd-d_)
+            #end
+            if n == 2
+                fo = open("./vtk/friction/figure"*string(iter,pad=4)*".vtk","w")
+                @printf fo "# vtk DataFile Version 2.0\n"
+                @printf fo "Test\n"
+                @printf fo "ASCII\n"
+                @printf fo "DATASET POLYDATA\n"
+                @printf fo "POINTS %i float\n" nₚ
+                for p in nodes
+                    @printf fo "%f %f %f\n" p.x p.y p.z
+                end
+                @printf fo "POLYGONS %i %i\n" nₑ 4*nₑ
+                for ap in elements["Ω"]
+                    𝓒 = ap.𝓒
+                    @printf fo "%i %i %i %i\n" 3 (x.𝐼-1 for x in 𝓒)...
+                end
+                @printf fo "POINT_DATA %i\n" nₚ
+                @printf fo "SCALARS UX float 1\n"
+                @printf fo "LOOKUP_TABLE default\n"
+                for p in nodes
+                    @printf fo "%f\n" p.d₁
+                end
+                @printf fo "SCALARS UY float 1\n"
+                @printf fo "LOOKUP_TABLE default\n"
+                for p in nodes
+                    @printf fo "%f\n" p.d₂
+                end
+                @printf fo "SCALARS DAMAGE float 1\n"
+                @printf fo "LOOKUP_TABLE default\n"
+                for p in nodes
+                    @printf fo "%f\n" p.v
+                end
+                close(fo)
+                
             end
+          
         end
     end
 
-    fo = open("./vtk/friction/figure"*string(n,pad=4)*".vtk","w")
-    @printf fo "# vtk DataFile Version 2.0\n"
-    @printf fo "Test\n"
-    @printf fo "ASCII\n"
-    @printf fo "DATASET POLYDATA\n"
-    @printf fo "POINTS %i float\n" nₚ
-    for p in nodes
-        @printf fo "%f %f %f\n" p.x p.y p.z
-    end
-    @printf fo "POLYGONS %i %i\n" nₑ 4*nₑ
-    for ap in elements["Ω"]
-        𝓒 = ap.𝓒
-        @printf fo "%i %i %i %i\n" 3 (x.𝐼-1 for x in 𝓒)...
-    end
-    @printf fo "POINT_DATA %i\n" nₚ
-    @printf fo "SCALARS UX float 1\n"
-    @printf fo "LOOKUP_TABLE default\n"
-    for p in nodes
-        @printf fo "%f\n" p.d₁
-    end
-    @printf fo "SCALARS UY float 1\n"
-    @printf fo "LOOKUP_TABLE default\n"
-    for p in nodes
-        @printf fo "%f\n" p.d₂
-    end
-    @printf fo "SCALARS DAMAGE float 1\n"
-    @printf fo "LOOKUP_TABLE default\n"
-    for p in nodes
-        @printf fo "%f\n" p.v
-    end
-    close(fo)
+   
 end
 # println(σ)
 # println(ε)
