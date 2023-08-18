@@ -2,7 +2,7 @@
 using Revise, ApproxOperator, LinearAlgebra, Printf
 using CairoMakie
 include("importmsh_phasefield.jl") 
-elements,nodes = import_fem("./msh/phasefield3.msh")
+elements,nodes = import_fem("./msh/phasefield6.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 # set shape functions
@@ -12,17 +12,17 @@ set𝝭!.(elements["Γᵍ"])
 set𝝭!.(elements["Γᵛ"])
 set𝝭!.(elements["Γ"])
 # material coefficients
-E = 1E6
-ν = 0.3
-λ = E*ν/(1.0+ν)/(1.0-2.0*ν)
-μ = 0.5*E/(1.0+ν)
+E = 1e6
+νₜ = 0.3
+#λ = E*ν/(1.0+ν)/(1.0-2.0*ν)
+#μ = 0.5*E/(1.0+ν)
 
 η = 1e-6
-kc = 1E4
-l = 0.1
+kc = 1e4
+l = 0.0015
 μ̄  = 0.5
 tol = 1e-9
-coefficient = (:η=>η,:k=>kc,:l=>l,:μ̄ =>μ̄ ,:tol=>tol,:λ=>λ,:μ=>μ,)
+coefficient = (:η=>η,:k=>kc,:l=>l,:μ̄ =>μ̄ ,:tol=>tol,:λ=>λ,:μ=>μ,:E =>E,:νₜ =>νₜ)
 
 # prescribe
 prescribe!(elements["Γ"],:g₁=>(x,y,z)->0.0)
@@ -86,15 +86,15 @@ ops = [
     Operator{:∫vgdΓ}(:α=>1e13),
     Operator{:∫∫∇v∇vvvdxdy}(coefficient...),
     Operator{:UPDATE_PFM_2D}(coefficient...),    
-    Operator{:∫∫εᵢⱼσᵢⱼdxdy}(:E=>E,:ν=>ν),  
+    Operator{:∫∫εᵢⱼσᵢⱼdxdy}(:E=>E,:νₜ=>νₜ),  
     Operator{:∫vᵢtᵢds}(),
 ]
 
 max_iter = 10
 # Δt = 0.1
 # T = 1.0
-Δt = 0.001
-T = 0.002
+Δt = 0.01
+T = 0.1
 total_steps = round(Int,T/Δt)
 
 𝑡 = zeros(total_steps+1)
@@ -121,7 +121,7 @@ for n in 0:total_steps
     iter = 0
     
     normΔ = 1.0
-    while normΔ > tol && iter < max_iter
+    while normΔ > tol && iter < 1
         iter += 1
         # phase field
         fill!(k₂,0.0)
@@ -139,7 +139,7 @@ for n in 0:total_steps
         # plasticity
         normΔd = 1.0
         iter₂ = 0
-        while normΔd > tol && iter₂ < max_iter
+        while normΔd > tol && iter₂ < 20
             iter₂ += 1
             fill!(k,0.0)
             fill!(fint,0.0)
@@ -172,7 +172,7 @@ for n in 0:total_steps
         end
     end
 
-    fo = open("./vtk/friction/figure"*string(n,pad=4)*".vtk","w")
+    fo = open("./vtk/friction2/figure"*string(n,pad=4)*".vtk","w")
     @printf fo "# vtk DataFile Version 2.0\n"
     @printf fo "Test\n"
     @printf fo "ASCII\n"

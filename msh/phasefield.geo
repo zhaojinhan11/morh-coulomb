@@ -27,9 +27,9 @@ Line(6) = {1, 5};
 //+
 Line(7) = {6, 3};
 //+
-Transfinite Curve {5, 4, 3, 2, 6, 7} = 10 Using Progression 1;
+Transfinite Curve {5, 4, 3, 2, 6, 7} = 30 Using Progression 1;
 //+
-Transfinite Curve {1} = 30 Using Progression 1;
+Transfinite Curve {1} = 130 Using Progression 1;
 //+
 Curve Loop(1) = {4, 5, 6, 1, 7};
 //+
