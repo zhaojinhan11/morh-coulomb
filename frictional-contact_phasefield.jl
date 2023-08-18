@@ -2,15 +2,21 @@
 using Revise, ApproxOperator, LinearAlgebra, Printf
 using CairoMakie
 include("importmsh_phasefield.jl") 
-elements,nodes = import_fem("./msh/phasefield3.msh")
+elements,nodes = import_fem2("./msh/inclined_interface.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 # set shape functions
-set𝝭!.(elements["Ω"])
-set∇𝝭!.(elements["Ω"])
-set𝝭!.(elements["Γᵍ"])
-set𝝭!.(elements["Γᵛ"])
-set𝝭!.(elements["Γ"])
+# set𝝭!.(elements["Ω"])
+# set∇𝝭!.(elements["Ω"])
+# set𝝭!.(elements["Γᵍ"])
+# set𝝭!.(elements["Γᵛ"])
+# set𝝭!.(elements["Γ"])
+set𝝭!(elements["Ω"])
+set∇𝝭!(elements["Ω"])
+set𝝭!(elements["Γᵍ₁"])
+set𝝭!(elements["Γᵍ₂"])
+set𝝭!(elements["Γᶜ"])
+set∇𝝭!(elements["Γᶜ"])
 # material coefficients
 E = 1E6
 ν = 0.3
@@ -18,83 +24,94 @@ E = 1E6
 μ = 0.5*E/(1.0+ν)
 
 η = 1e-6
-kc = 1E4
+kc = 1E6
 l = 0.1
 μ̄  = 0.5
 tol = 1e-9
-coefficient = (:η=>η,:k=>kc,:l=>l,:μ̄ =>μ̄ ,:tol=>tol,:λ=>λ,:μ=>μ,)
+# coefficient = (:η=>η,:k=>kc,:l=>l,:μ̄ =>μ̄ ,:tol=>tol,:λ=>λ,:μ=>μ,)
 
 # prescribe
-prescribe!(elements["Γ"],:g₁=>(x,y,z)->0.0)
-prescribe!(elements["Γ"],:g₂=>(x,y,z)->0.0)
-prescribe!(elements["Γ"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
-prescribe!(elements["Γ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
-prescribe!(elements["Γ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
-prescribe!(elements["Γᵍ"],:g₁=>(x,y,z)->0.0)
-prescribe!(elements["Γᵍ"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
-prescribe!(elements["Γᵍ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
-prescribe!(elements["Γᵍ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
-prescribe!(elements["Γᵛ"],:g=>(x,y,z)->0.0)
+# prescribe!(elements["Γ"],:g₁=>(x,y,z)->0.0)
+# prescribe!(elements["Γ"],:g₂=>(x,y,z)->0.0)
+# prescribe!(elements["Γ"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
+# prescribe!(elements["Γ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
+# prescribe!(elements["Γ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+# prescribe!(elements["Γᵍ"],:g₁=>(x,y,z)->0.0)
+# prescribe!(elements["Γᵍ"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
+# prescribe!(elements["Γᵍ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
+# prescribe!(elements["Γᵍ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+# prescribe!(elements["Γᵛ"],:g=>(x,y,z)->0.0)
+# prescribe!(elements["Ω"],:σ₁₁=>(x,y,z)->0.0)
+# prescribe!(elements["Ω"],:σ₂₂=>(x,y,z)->0.0)
+# prescribe!(elements["Ω"],:σ₃₃=>(x,y,z)->0.0)
+# prescribe!(elements["Ω"],:σ₁₂=>(x,y,z)->0.0)
+# prescribe!(elements["Ω"],:Δε₁₁=>(x,y,z)->0.0)
+# prescribe!(elements["Ω"],:Δε₂₂=>(x,y,z)->0.0)
+# prescribe!(elements["Ω"],:Δε₁₂=>(x,y,z)->0.0)
+# prescribe!(elements["Ω"],:ε₁₁=>(x,y,z)->0.0)
+# prescribe!(elements["Ω"],:ε₂₂=>(x,y,z)->0.0)
+# prescribe!(elements["Ω"],:ε₁₂=>(x,y,z)->0.0)
+# prescribe!(elements["Ω"],:ℋ=>(x,y,z)->0.0)
+
+prescribe!(elements["Γᵍ₁"],:g₁=>(x,y,z)->0.0)
+prescribe!(elements["Γᵍ₁"],:g₂=>(x,y,z)->0.0)
+prescribe!(elements["Γᵍ₁"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
+prescribe!(elements["Γᵍ₁"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
+prescribe!(elements["Γᵍ₁"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+prescribe!(elements["Γᵍ₂"],:g₁=>(x,y,z)->0.0)
+prescribe!(elements["Γᵍ₂"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
+prescribe!(elements["Γᵍ₂"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
+prescribe!(elements["Γᵍ₂"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+prescribe!(elements["Γᶜ"],:g=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₁₁=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₂₂=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:σ₃₃=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₁₂=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:Δε₁₁=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:Δε₂₂=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:Δε₁₂=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:ε₁₁=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:ε₂₂=>(x,y,z)->0.0)
-prescribe!(elements["Ω"],:ε₁₂=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:ℋ=>(x,y,z)->0.0)
-
 
 
 # assembly
 k₂ = zeros(nₚ,nₚ)
 f₂ = zeros(nₚ)
 dᵥ = zeros(nₚ)
+kᵅᶜ = zeros(nₚ,nₚ)
+fᵅᶜ = zeros(nₚ)
 fint = zeros(2*nₚ)
-fext = zeros(2*nₚ)
+fᵅ₁ = zeros(2*nₚ)
+fᵅ₂ = zeros(2*nₚ)
+kᵅ₁  = zeros(2*nₚ,2*nₚ)
+kᵅ₂  = zeros(2*nₚ,2*nₚ)
 k = zeros(2*nₚ,2*nₚ)
-k_ = zeros(2*nₚ,2*nₚ)
 f = zeros(2*nₚ)
-kα = zeros(2*nₚ,2*nₚ)
-fα = zeros(2*nₚ)
-kvα = zeros(nₚ,nₚ)
-fvα = zeros(nₚ)
-kᵍ  = zeros(2*nₚ,2*nₚ)
 d = zeros(2*nₚ)
 Δd = zeros(2*nₚ)
 Δd₁ = zeros(nₚ)
 Δd₂ = zeros(nₚ)
 d₁ = zeros(nₚ)
 d₂ = zeros(nₚ)
-u = zeros(2*nₚ)
 v = ones(nₚ)
 
 push!(nodes,:d₁=>d₁,:d₂=>d₂)
 push!(nodes,:Δd₁=>Δd₁)
 push!(nodes,:Δd₂=>Δd₂)
-push!(nodes,:u=>u)
 push!(nodes,:v=>v)
 
 
 # set operator
 ops = [
-    Operator{:∫vᵢσdΩ_frictional_contact}(coefficient...),
-    Operator{:∫vᵢgᵢds}(:α=>1e13),
-    Operator{:∫vgdΓ}(:α=>1e13),
-    Operator{:∫∫∇v∇vvvdxdy}(coefficient...),
-    Operator{:UPDATE_PFM_2D}(coefficient...),    
+    Operator{:∫vᵢσdΩ_frictional_contact}(:E=>E,:ν=>ν,:μ̄=>μ̄,:η=>η,:tol=>tol),
+    Operator{:∫vᵢgᵢds}(:α=>1e9*E),
+    Operator{:∫vgdΓ}(:α=>1e9*kc),
+    Operator{:∫∫∇v∇vvvdxdy}(:k=>kc,:l=>l,:η=>η),
+    Operator{:UPDATE_PFM_2D}(:E=>E,:ν=>ν),    
     Operator{:∫∫εᵢⱼσᵢⱼdxdy}(:E=>E,:ν=>ν),  
     Operator{:∫vᵢtᵢds}(),
 ]
 
-max_iter = 10
+max_iter = 5
 # Δt = 0.1
 # T = 1.0
-Δt = 0.001
-T = 0.002
+Δt = 0.05
+T = 1.0
 total_steps = round(Int,T/Δt)
 
 𝑡 = zeros(total_steps+1)
@@ -104,18 +121,18 @@ Et = zeros(total_steps+1) # total energy
 σ = zeros(total_steps+1)
 ε = zeros(total_steps+1)
 
-ops[2](elements["Γ"],kα,fα)
-# ops[3](elements["Γᵛ"],kvα,fvα)
+ops[2](elements["Γᵍ₁"],kᵅ₁,fᵅ₁)
+ops[3](elements["Γᶜ"],kᵅᶜ,fᵅᶜ)
 for n in 0:total_steps
-    fill!(fext,0.0)
-    fill!(kᵍ,0.0)
+    fill!(fᵅ₂,0.0)
+    fill!(kᵅ₂,0.0)
 
     #prescribe!(elements["Γᵍ"],:t₁=>(x,y,z)->0.0)
     #@printf "Load step=%i, f=%e \n" n T*n/total_steps
     #prescribe!(elements["Γᵍ"],:t₂=>(x,y,z)->T*n/total_steps)
     
-    prescribe!(elements["Γᵍ"],:g₂=>(x,y,z)->(n*Δt*y))
-    ops[2](elements["Γᵍ"],kᵍ,fext)
+    prescribe!(elements["Γᵍ₂"],:g₂=>(x,y,z)->(n*Δt*y))
+    ops[2](elements["Γᵍ₂"],kᵅ₂,fᵅ₂)
 
     @printf "Load step=%i, f=%e \n" n (n*Δt)
     iter = 0
@@ -127,9 +144,8 @@ for n in 0:total_steps
         fill!(k₂,0.0)
         fill!(f₂,0.0)
         ops[4](elements["Ω"],k₂,f₂)
-        ops[3](elements["Γᵛ"],kvα,fvα)
-        dᵥ .= (k₂+kvα)\(f₂+fvα)
-        normΔv = norm(v - dᵥ)/norm(v)
+        dᵥ .= (k₂+kᵅᶜ)\(f₂+fᵅᶜ)
+        normΔv = norm(v - dᵥ)
         v .= dᵥ
 
         # update variables
@@ -145,9 +161,9 @@ for n in 0:total_steps
             fill!(fint,0.0)
             ops[1].(elements["Ω"];k=k,fint=fint)
             if iter₂ == 1
-                Δd .= (k+kα+kᵍ)\(fext-fint+fα)
+                Δd .= (k+kᵅ₁+kᵅ₂)\(fᵅ₁+fᵅ₂-fint)
             else
-                Δd .= (k+kα+kᵍ)\(-fint)
+                Δd .= (k+kᵅ₁+kᵅ₂)\(-fint)
             end
 
             Δd₁ .= Δd[1:2:2*nₚ]
@@ -201,6 +217,22 @@ for n in 0:total_steps
     @printf fo "LOOKUP_TABLE default\n"
     for p in nodes
         @printf fo "%f\n" p.v
+    end
+    @printf fo "CELL_DATA %i\n" nₑ
+    @printf fo "SCALARS ENERGY float 1\n"
+    @printf fo "LOOKUP_TABLE default\n"
+    for ap in elements["Ω"]
+        𝓒 = ap.𝓒
+        ξ, = ap.𝓖
+        B₁ = ξ[:∂𝝭∂x]
+        B₂ = ξ[:∂𝝭∂y]
+        σ₁₁ = ξ.σ₁₁
+        σ₂₂ = ξ.σ₂₂
+        σ₁₂ = ξ.σ₁₂
+        ε₁₁ = sum(B₁[i]*xᵢ.d₁ for (i,xᵢ) in enumerate(𝓒))
+        ε₂₂ = sum(B₂[i]*xᵢ.d₂ for (i,xᵢ) in enumerate(𝓒))
+        ε₁₂ = sum(B₁[i]*xᵢ.d₂ + B₂[i]*xᵢ.d₁ for (i,xᵢ) in enumerate(𝓒))
+        @printf fo "%f\n" 0.5*(σ₁₁*ε₁₁ + σ₂₂*ε₂₂ + σ₁₂*ε₁₂)
     end
     close(fo)
 end
