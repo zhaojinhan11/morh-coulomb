@@ -23,11 +23,11 @@ E = 1E4
 λ = E*ν/(1.0+ν)/(1.0-2.0*ν)
 μ = 0.5*E/(1.0+ν)
 
-η = 1e-9
+η = 1e-6
 kc = 1E5
-l = 0.008
+l = 0.1
 μ̄  = 0.1
-tol = 1e-9
+tol = 1e-7
 # coefficient = (:η=>η,:k=>kc,:l=>l,:μ̄ =>μ̄ ,:tol=>tol,:λ=>λ,:μ=>μ,)
 
 # prescribe
@@ -107,11 +107,11 @@ ops = [
     Operator{:∫vᵢtᵢds}(),
 ]
 
-max_iter = 5
+max_iter = 30
 # Δt = 0.1
 # T = 1.0
 Δt = 0.01
-T = 0.1
+T = 0.01
 total_steps = round(Int,T/Δt)
 
 𝑡 = zeros(total_steps+1)
@@ -155,7 +155,7 @@ for n in 0:total_steps
         # plasticity
         normΔd = 1.0
         iter₂ = 0
-        while normΔd > tol && iter₂ < 10
+        while normΔd > tol && iter₂ < max_iter
             iter₂ += 1
             fill!(k,0.0)
             fill!(fint,0.0)
@@ -175,20 +175,13 @@ for n in 0:total_steps
 
             @printf("iter₂ = %3i, normΔd = %10.2e\n", iter₂ , normΔd)   
 
-
-            # fill!(k_,0.0)
-            # ops[6](elements["Ω"],k_)
-            # d_ = (k+kα+kᵍ)\(fext+fα)
-            # if n == 1 && iter == 1 && iter₂ == 1
-            #    println(k-k_)
-            #    println(fint)
-            #    println(Δd-d_)
-            # end
-
         end
     end
+    # ops[5](elements["Ω"])
+    # if n == 1
 
     fo = open("./vtk/friction2/figure"*string(n,pad=4)*".vtk","w")
+    # fo = open("./vtk/friction2/figure"*string(iter₂,pad=4)*".vtk","w")
     @printf fo "# vtk DataFile Version 2.0\n"
     @printf fo "Test\n"
     @printf fo "ASCII\n"
@@ -235,6 +228,9 @@ for n in 0:total_steps
         @printf fo "%f\n" 0.5*(σ₁₁*ε₁₁ + σ₂₂*ε₂₂ + σ₁₂*ε₁₂)
     end
     close(fo)
+# end
+# end
+# end
 end
 # println(σ)
 # println(ε)
