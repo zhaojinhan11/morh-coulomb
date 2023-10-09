@@ -5,18 +5,10 @@ include("importmsh_phasefield.jl")
 elements,nodes = import_fem2("./msh/inclined_interface.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
-# set shape functions
-# set𝝭!.(elements["Ω"])
-# set∇𝝭!.(elements["Ω"])
-# set𝝭!.(elements["Γᵍ"])
-# set𝝭!.(elements["Γᵛ"])
-# set𝝭!.(elements["Γ"])
+
 set𝝭!(elements["Ω"])
 set∇𝝭!(elements["Ω"])
-set𝝭!(elements["Γᵍ₁"])
-set𝝭!(elements["Γᵍ₂"])
-set𝝭!(elements["Γᶜ"])
-set∇𝝭!(elements["Γᶜ"])
+
 # material coefficients
 E = 1E4
 ν = 0.3
@@ -28,58 +20,20 @@ kc = 1E5
 l = 0.1
 μ̄  = 0.1
 tol = 1e-7
-# coefficient = (:η=>η,:k=>kc,:l=>l,:μ̄ =>μ̄ ,:tol=>tol,:λ=>λ,:μ=>μ,)
 
-# prescribe
-# prescribe!(elements["Γ"],:g₁=>(x,y,z)->0.0)
-# prescribe!(elements["Γ"],:g₂=>(x,y,z)->0.0)
-# prescribe!(elements["Γ"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
-# prescribe!(elements["Γ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
-# prescribe!(elements["Γ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
-# prescribe!(elements["Γᵍ"],:g₁=>(x,y,z)->0.0)
-# prescribe!(elements["Γᵍ"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
-# prescribe!(elements["Γᵍ"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
-# prescribe!(elements["Γᵍ"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
-# prescribe!(elements["Γᵛ"],:g=>(x,y,z)->0.0)
-# prescribe!(elements["Ω"],:σ₁₁=>(x,y,z)->0.0)
-# prescribe!(elements["Ω"],:σ₂₂=>(x,y,z)->0.0)
-# prescribe!(elements["Ω"],:σ₃₃=>(x,y,z)->0.0)
-# prescribe!(elements["Ω"],:σ₁₂=>(x,y,z)->0.0)
-# prescribe!(elements["Ω"],:Δε₁₁=>(x,y,z)->0.0)
-# prescribe!(elements["Ω"],:Δε₂₂=>(x,y,z)->0.0)
-# prescribe!(elements["Ω"],:Δε₁₂=>(x,y,z)->0.0)
-# prescribe!(elements["Ω"],:ε₁₁=>(x,y,z)->0.0)
-# prescribe!(elements["Ω"],:ε₂₂=>(x,y,z)->0.0)
-# prescribe!(elements["Ω"],:ε₁₂=>(x,y,z)->0.0)
-# prescribe!(elements["Ω"],:ℋ=>(x,y,z)->0.0)
-
-prescribe!(elements["Γᵍ₁"],:g₁=>(x,y,z)->0.0)
-prescribe!(elements["Γᵍ₁"],:g₂=>(x,y,z)->0.0)
-prescribe!(elements["Γᵍ₁"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
-prescribe!(elements["Γᵍ₁"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
-prescribe!(elements["Γᵍ₁"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
-prescribe!(elements["Γᵍ₂"],:g₁=>(x,y,z)->0.0)
-prescribe!(elements["Γᵍ₂"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
-prescribe!(elements["Γᵍ₂"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
-prescribe!(elements["Γᵍ₂"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
-prescribe!(elements["Γᶜ"],:g=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₁₁=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₂₂=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₁₂=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:ℋ=>(x,y,z)->0.0)
+prescribe!(elements["Ω"],:n₁=>(x,y,z)->0.0)
+prescribe!(elements["Ω"],:n₂=>(x,y,z)->0.0)
 
 
 # assembly
 k₂ = zeros(nₚ,nₚ)
 f₂ = zeros(nₚ)
 dᵥ = zeros(nₚ)
-kᵅᶜ = zeros(nₚ,nₚ)
-fᵅᶜ = zeros(nₚ)
 fint = zeros(2*nₚ)
-fᵅ₁ = zeros(2*nₚ)
-fᵅ₂ = zeros(2*nₚ)
-kᵅ₁  = zeros(2*nₚ,2*nₚ)
-kᵅ₂  = zeros(2*nₚ,2*nₚ)
 k = zeros(2*nₚ,2*nₚ)
 f = zeros(2*nₚ)
 d = zeros(2*nₚ)
@@ -99,19 +53,20 @@ push!(nodes,:v=>v)
 # set operator
 ops = [
     Operator{:∫vᵢσdΩ_frictional_contact}(:E=>E,:ν=>ν,:μ̄=>μ̄,:η=>η,:tol=>tol),
-    Operator{:∫vᵢgᵢds}(:α=>1e9*E),
-    Operator{:∫vgdΓ}(:α=>1e9*kc),
+    Operator{:g₂}(),
+    Operator{:g}(),
     Operator{:∫∫∇v∇vvvdxdy}(:k=>kc,:l=>l,:η=>η),
     Operator{:UPDATE_PFM_2D}(:E=>E,:ν=>ν),    
     Operator{:∫∫εᵢⱼσᵢⱼdxdy}(:E=>E,:ν=>ν),  
     Operator{:∫vᵢtᵢds}(),
+    Operator{:CRACK_NORMAL}(:l=>l)
 ]
 
 max_iter = 30
 # Δt = 0.1
 # T = 1.0
 Δt = 0.01
-T = 0.01
+T = 0.02
 total_steps = round(Int,T/Δt)
 
 𝑡 = zeros(total_steps+1)
@@ -121,18 +76,12 @@ Et = zeros(total_steps+1) # total energy
 σ = zeros(total_steps+1)
 ε = zeros(total_steps+1)
 
-ops[2](elements["Γᵍ₁"],kᵅ₁,fᵅ₁)
-ops[3](elements["Γᶜ"],kᵅᶜ,fᵅᶜ)
-for n in 0:total_steps
-    fill!(fᵅ₂,0.0)
-    fill!(kᵅ₂,0.0)
+for ap in elements["Γᶜ"]
+    x, = ap.𝓒
+    x.v = 0.0
+end
 
-    #prescribe!(elements["Γᵍ"],:t₁=>(x,y,z)->0.0)
-    #@printf "Load step=%i, f=%e \n" n T*n/total_steps
-    #prescribe!(elements["Γᵍ"],:t₂=>(x,y,z)->T*n/total_steps)
-    
-    prescribe!(elements["Γᵍ₂"],:g₂=>(x,y,z)->(-n*Δt*y))
-    ops[2](elements["Γᵍ₂"],kᵅ₂,fᵅ₂)
+for n in 0:total_steps
 
     @printf "Load step=%i, f=%e \n" n (n*Δt)
     iter = 0
@@ -144,13 +93,16 @@ for n in 0:total_steps
         fill!(k₂,0.0)
         fill!(f₂,0.0)
         ops[4](elements["Ω"],k₂,f₂)
-        dᵥ .= (k₂+kᵅᶜ)\(f₂+fᵅᶜ)
+        ops[3].(elements["Γᶜ"],k=k₂,f=f₂,dof=:v)
+        dᵥ .= k₂\f₂
         normΔv = norm(v - dᵥ)
         v .= dᵥ
 
         # update variables
         normΔ = normΔv 
         @printf("iter = %3i, normΔv = %10.2e\n", iter , normΔv)   
+
+        ops[8](elements["Ω"],nodes,v)
     
         # plasticity
         normΔd = 1.0
@@ -159,17 +111,41 @@ for n in 0:total_steps
             iter₂ += 1
             fill!(k,0.0)
             fill!(fint,0.0)
+            fill!(f,0.0)
             ops[1].(elements["Ω"];k=k,fint=fint)
-            if iter₂ == 1
-                Δd .= (k+kᵅ₁+kᵅ₂)\(fᵅ₁+fᵅ₂-fint)
-            else
-                Δd .= (k+kᵅ₁+kᵅ₂)\(-fint)
+            f .= -fint
+
+            for ap in elements["Γᵍ₁"]
+                x, = ap.𝓒
+                x.Δd₁ = - x.d₁
+                x.Δd₂ = - x.d₂
             end
+            for ap in elements["Γᵍ₂"]
+                x, = ap.𝓒
+                x.Δd₂ = -n*Δt*x.y - x.d₂
+            end
+
+            ops[2].(elements["Γᵍ₁"],k=k,f=f,dof=:Δd₁)
+            ops[2].(elements["Γᵍ₁"],k=k,f=f,dof=:Δd₂)
+            ops[2].(elements["Γᵍ₂"],k=k,f=f,dof=:Δd₂)
+            Δd .= k\f
 
             Δd₁ .= Δd[1:2:2*nₚ]
             Δd₂ .= Δd[2:2:2*nₚ]
             d₁ .+= Δd₁
             d₂ .+= Δd₂
+
+            # check
+            # for ap in elements["Γᵍ₁"]
+            #     x, = ap.𝓒
+            #     if x.d₁ ≠ 0.0 || x.d₂ ≠ 0.0
+            #         d₁ = x.d₁
+            #         d₂ = x.d₂
+            #         ApproxOperator.printinfo(x)
+            #         error("Γᵍ₁ wrong, $d₁, $d₂")
+            #     end
+            # end
+
             # normΔd = norm(Δd)/(norm(d₁) + norm(d₂))
             normΔd = norm(Δd)
 
