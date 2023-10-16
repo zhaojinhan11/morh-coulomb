@@ -2,7 +2,7 @@
 using Revise, ApproxOperator, LinearAlgebra, Printf
 using CairoMakie
 include("importmsh_phasefield.jl") 
-elements,nodes = import_fem2("./msh/inclined_interface.msh")
+elements,nodes = import_fem2("./msh/inclined_interface22.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 # set shape functions
@@ -27,7 +27,7 @@ c = 10
 
 η = 1e-9
 kc = 1E5
-l = 0.008
+l = 0.032
 μ̄  = 0.1
 tol = 1e-9
 # coefficient = (:η=>η,:k=>kc,:l=>l,:μ̄ =>μ̄ ,:tol=>tol,:λ=>λ,:μ=>μ,)
@@ -93,8 +93,8 @@ ops = [
 max_iter = 2
 # Δt = 0.1
 # T = 1.0
-Δt = 0.01
-T = 0.1
+Δt = 0.03
+T = 0.6
 total_steps = round(Int,T/Δt)
 
 𝑡 = zeros(total_steps+1)

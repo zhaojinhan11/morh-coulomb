@@ -2,7 +2,7 @@
 using Revise, ApproxOperator, LinearAlgebra, Printf
 using CairoMakie
 include("importmsh_phasefield.jl") 
-elements,nodes = import_fem2("./msh/inclined_interface.msh")
+elements,nodes = import_fem2("./msh/inclined_interface23.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 
@@ -17,7 +17,7 @@ E = 1E4
 
 η = 1e-6
 kc = 1E5
-l = 0.1
+l = 0.0
 μ̄  = 0.1
 tol = 1e-7
 
@@ -62,11 +62,11 @@ ops = [
     Operator{:CRACK_NORMAL}(:l=>l)
 ]
 
-max_iter = 30
+max_iter = 20
 # Δt = 0.1
 # T = 1.0
-Δt = 0.01
-T = 0.02
+Δt = 0.02
+T = 0.2
 total_steps = round(Int,T/Δt)
 
 𝑡 = zeros(total_steps+1)
@@ -87,7 +87,7 @@ for n in 0:total_steps
     iter = 0
     
     normΔ = 1.0
-    while normΔ > tol && iter < max_iter
+    while normΔ > tol && iter < 5
         iter += 1
         # phase field
         fill!(k₂,0.0)
@@ -156,7 +156,7 @@ for n in 0:total_steps
     # ops[5](elements["Ω"])
     # if n == 1
 
-    fo = open("./vtk/friction2/figure"*string(n,pad=4)*".vtk","w")
+    fo = open("./vtk/iter=3/figure"*string(n,pad=4)*".vtk","w")
     # fo = open("./vtk/friction2/figure"*string(iter₂,pad=4)*".vtk","w")
     @printf fo "# vtk DataFile Version 2.0\n"
     @printf fo "Test\n"
