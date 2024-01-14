@@ -1,0 +1,2 @@
+using Pardiso
+ps = MKLPardisoSolver()

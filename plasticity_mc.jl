@@ -81,7 +81,7 @@ max_iter = 10
 
 σ = zeros(total_steps+1)
 ε = zeros(total_steps+1)
-for n in 0:19
+for n in 0:17
   
     fill!(fext,0.0)
     prescribe!(elements["Γᵗ"],:t₁=>(x,y,z)->F*n/total_steps)
@@ -184,7 +184,6 @@ for n in 0:19
     for ap in elements["Ω"][1:1]
         𝓒 = ap.𝓒
         𝓖 = ap.𝓖
-    
         for (i,ξ) in enumerate(𝓖)
             if i == 1
                 B₁ = ξ[:∂𝝭∂x]
@@ -199,10 +198,8 @@ for n in 0:19
                 end
                 ξ.ε₁₁ = ε₁₁
                 σ₁₁ = ξ.σ₁₁
-                σ[n+1] = -σ₁₁
-                ε[n+1] = -ε₁₁
-               
-                
+                σ[n+1] = σ₁₁
+                ε[n+1] = ε₁₁
                 break
             end
         end

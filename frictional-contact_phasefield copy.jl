@@ -2,7 +2,7 @@
 using Revise, ApproxOperator, LinearAlgebra, Printf
 using CairoMakie
 include("importmsh_phasefield copy.jl") 
-elements,nodes = import_fem2("./msh/inclined_interface13.msh")
+elements,nodes = import_fem2("./msh/inclined_interfacemf4.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 # set shape functions
@@ -15,19 +15,21 @@ set𝝭!(elements["Ω"])
 set∇𝝭!(elements["Ω"])
 set𝝭!(elements["Γᵍ₁"])
 set𝝭!(elements["Γᵍ₂"])
+#set𝝭!(elements["Γᵍ₃"])
+#set𝝭!(elements["Γᵍ₄"])
+
 set𝝭!(elements["Γᶜ"])
 
 # material coefficients
-E = 1E4
+E = 10000
 ν = 0.3
 λ = E*ν/(1.0+ν)/(1.0-2.0*ν)     
 μ = 0.5*E/(1.0+ν)
-
 η = 1e-6
-kc = 1E5
-l = 0.01
-μ̄  = 0.1
-tol = 1e-7
+kc = 20
+l = 0.08
+μ̄  = 0.3
+tol = 1e-7                
 
 
 prescribe!(elements["Γᵍ₁"],:g₁=>(x,y,z)->0.0)
@@ -35,10 +37,23 @@ prescribe!(elements["Γᵍ₁"],:g₂=>(x,y,z)->0.0)
 prescribe!(elements["Γᵍ₁"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
 prescribe!(elements["Γᵍ₁"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
 prescribe!(elements["Γᵍ₁"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+
 prescribe!(elements["Γᵍ₂"],:g₁=>(x,y,z)->0.0)
 prescribe!(elements["Γᵍ₂"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
 prescribe!(elements["Γᵍ₂"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
 prescribe!(elements["Γᵍ₂"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+
+#prescribe!(elements["Γᵍ₄"],:g₁=>(x,y,z)->0.0)
+#prescribe!(elements["Γᵍ₄"],:g₂=>(x,y,z)->0.0)
+#prescribe!(elements["Γᵍ₄"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
+#prescribe!(elements["Γᵍ₄"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
+#prescribe!(elements["Γᵍ₄"],:n₂₂=>(x,y,z,n₁,n₂)->0.0)
+#prescribe!(elements["Γᵍ₃"],:g₁=>(x,y,z)->0.0)
+#prescribe!(elements["Γᵍ₃"],:g₂=>(x,y,z)->0.0)
+#prescribe!(elements["Γᵍ₃"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
+#prescribe!(elements["Γᵍ₃"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
+#prescribe!(elements["Γᵍ₃"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+
 prescribe!(elements["Γᶜ"],:g=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₁₁=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₂₂=>(x,y,z)->0.0)
@@ -46,6 +61,7 @@ prescribe!(elements["Ω"],:σ₁₂=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:ℋ=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:n₁=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:n₂=>(x,y,z)->0.0)
+
 
 
 # assembly
@@ -60,7 +76,6 @@ fᵅ₂ = zeros(2*nₚ)
 kᵅ₁  = zeros(2*nₚ,2*nₚ)
 kᵅ₂  = zeros(2*nₚ,2*nₚ)
 k = zeros(2*nₚ,2*nₚ)
-f = zeros(2*nₚ)
 d = zeros(2*nₚ)
 Δd = zeros(2*nₚ)
 Δd₁ = zeros(nₚ)
@@ -90,8 +105,8 @@ ops = [
 max_iter = 10
 # Δt = 0.1
 # T = 1.0
-Δt = 0.02
-T = 0.8
+Δt = 0.0001
+T = 2
 total_steps = round(Int,T/Δt)
 
 𝑡 = zeros(total_steps+1)
@@ -102,23 +117,29 @@ Et = zeros(total_steps+1) # total energy
 ε = zeros(total_steps+1)
 
 ops[2](elements["Γᵍ₁"],kᵅ₁,fᵅ₁)
+#ops[2](elements["Γᵍ₃"],kᵅ₁,fᵅ₁)
+#ops[2](elements["Γᵍ₄"],kᵅ₁,fᵅ₁)
 ops[3](elements["Γᶜ"],kᵅᶜ,fᵅᶜ)
-for n in 0:total_steps
+for n in 1:total_steps
     fill!(fᵅ₂,0.0)
     fill!(kᵅ₂,0.0)
 
     #prescribe!(elements["Γᵍ"],:t₁=>(x,y,z)->0.0)
     #@printf "Load step=%i, f=%e \n" n T*n/total_steps
     #prescribe!(elements["Γᵍ"],:t₂=>(x,y,z)->T*n/total_steps)
-    
-    prescribe!(elements["Γᵍ₂"],:g₂=>(x,y,z)->(-n*Δt*y))
+    if n == 0
+        h = 0.0
+    else
+        h = Δt  
+    end
+    prescribe!(elements["Γᵍ₂"],:g₂=>(x,y,z)->(-h))
     ops[2](elements["Γᵍ₂"],kᵅ₂,fᵅ₂)
 
     @printf "Load step=%i, f=%e \n" n (n*Δt)
     iter = 0
     
     normΔ = 1.0
-    while normΔ > tol && iter < 5
+    while normΔ > tol && iter < 10
         iter += 1
         # phase field
         fill!(k₂,0.0)
@@ -131,7 +152,7 @@ for n in 0:total_steps
         # update variables
         normΔ = normΔv 
         @printf("iter = %3i, normΔv = %10.2e\n", iter , normΔv)   
-        ops[8](elements["Ω"],nodes,v)
+        #ops[8](elements["Ω"],nodes,v)
     
         # plasticity
         normΔd = 1.0
@@ -161,7 +182,8 @@ for n in 0:total_steps
     # ops[5](elements["Ω"])
     # if n == 1
 
-    fo = open("./vtk/msh12_fc/figure"*string(n,pad=4)*".vtk","w")
+
+    fo = open("./vtk/mehsfree2/figure"*string(n,pad=4)*".vtk","w")
     # fo = open("./vtk/friction2/figure"*string(iter₂,pad=4)*".vtk","w")
     @printf fo "# vtk DataFile Version 2.0\n"
     @printf fo "Test\n"
@@ -207,6 +229,8 @@ for n in 0:total_steps
         ε₂₂ = sum(B₂[i]*xᵢ.d₂ for (i,xᵢ) in enumerate(𝓒))
         ε₁₂ = sum(B₁[i]*xᵢ.d₂ + B₂[i]*xᵢ.d₁ for (i,xᵢ) in enumerate(𝓒))
         @printf fo "%f\n" 0.5*(σ₁₁*ε₁₁ + σ₂₂*ε₂₂ + σ₁₂*ε₁₂)
+        #σ₁₁=ξ.σ₁₁
+        #println(σ₁₁)
     end
     close(fo)
 # end

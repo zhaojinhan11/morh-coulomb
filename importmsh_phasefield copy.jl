@@ -14,8 +14,9 @@ function import_fem(filename::String)
     end
 
    
-    elements = Dict(["Ω"=>Element{:Tri3}[],"Γ"=>Element{:Seg2}[],"Γᵛ"=>Element{:Seg2}[],"Γᵍ"=>Element{:Seg2}[]])
+    elements = Dict(["Ω"=>Element{:Tri3}[],"Γᵍ₁"=>Element{:Seg2}[],"Γᵍ₂"=>Element{:Seg2}[],"Γᵍ₃"=>Element{:Seg2}[],"Γᶜ"=>Element{:Seg2}[]])
 
+   
     𝓒 = Node{(:𝐼,),1}[]
     𝓖 = Node{(:𝑔,:𝐺,:𝐶,:𝑠),4}[]
     c = 0
@@ -75,7 +76,7 @@ function import_fem(filename::String)
     ng = 2 
     gauss_scheme = :SegGI2
     scheme = ApproxOperator.quadraturerule(gauss_scheme)
-    nₑ = length(elms["Γ"])
+    nₑ = length(elms["Γᵍ₁"])
 
     data_𝓖 = Dict([
         :ξ=>(1,scheme[:ξ]),
@@ -90,7 +91,7 @@ function import_fem(filename::String)
         :∂𝝭∂x=>(4,zeros(ng*nₑ*2)),
         :∂𝝭∂y=>(4,zeros(ng*nₑ*2)),
     ])
-    for (C,a) in enumerate(elms["Γ"])
+    for (C,a) in enumerate(elms["Γᵍ₁"])
         element = Element{:Seg2}((c,2,𝓒),(g,ng,𝓖))
         for v in a.vertices
             i = v.i
@@ -120,8 +121,10 @@ function import_fem(filename::String)
         element.n₁ = n₁
         element.n₂ = n₂
         g += ng
-        push!(elements["Γ"],element)
+        push!(elements["Γᵍ₁"],element)
     end
+
+###########################################################################
 
     𝓒 = Node{(:𝐼,),1}[]
     𝓖 = Node{(:𝑔,:𝐺,:𝐶,:𝑠),4}[]
@@ -132,7 +135,7 @@ function import_fem(filename::String)
     ng = 2 
     gauss_scheme = :SegGI2
     scheme = ApproxOperator.quadraturerule(gauss_scheme)
-    nₑ = length(elms["Γᵛ"])
+    nₑ = length(elms["Γᵍ₂"])
 
 
 
@@ -149,7 +152,7 @@ function import_fem(filename::String)
         :∂𝝭∂x=>(4,zeros(ng*nₑ*2)),
         :∂𝝭∂y=>(4,zeros(ng*nₑ*2)),
     ])
-    for (C,a) in enumerate(elms["Γᵛ"])
+    for (C,a) in enumerate(elms["Γᵍ₂"])
         element = Element{:Seg2}((c,2,𝓒),(g,ng,𝓖))
         for v in a.vertices
             i = v.i
@@ -179,11 +182,71 @@ function import_fem(filename::String)
         element.n₁ = n₁
         element.n₂ = n₂
         g += ng
-        push!(elements["Γᵛ"],element)
+        push!(elements["Γᵍ₂"],element)
     end
+###
+𝓒 = Node{(:𝐼,),1}[]
+𝓖 = Node{(:𝑔,:𝐺,:𝐶,:𝑠),4}[]
+c = 0
+g = 0
+G = 0
+s = 0
+ng = 2 
+gauss_scheme = :SegGI2
+scheme = ApproxOperator.quadraturerule(gauss_scheme)
+nₑ = length(elms["Γᵍ₃"])
 
 
 
+data_𝓖 = Dict([
+    :ξ=>(1,scheme[:ξ]),
+    :w=>(1,scheme[:w]),
+    :x=>(2,zeros(ng*nₑ)),
+    :y=>(2,zeros(ng*nₑ)),
+    :z=>(2,zeros(ng*nₑ)),
+    :𝑤=>(2,zeros(ng*nₑ)),
+    :n₁=>(3,zeros(nₑ)),
+    :n₂=>(3,zeros(nₑ)),
+    :𝝭=>(4,zeros(ng*nₑ*2)),
+    :∂𝝭∂x=>(4,zeros(ng*nₑ*2)),
+    :∂𝝭∂y=>(4,zeros(ng*nₑ*2)),
+])
+for (C,a) in enumerate(elms["Γᵍ₃"])
+    element = Element{:Seg2}((c,2,𝓒),(g,ng,𝓖))
+    for v in a.vertices
+        i = v.i
+        push!(𝓒,nodes[i])
+    end
+    c += 2
+   
+    𝐿 = ApproxOperator.get𝐿(a)
+    x₁ = a.vertices[1].x
+    x₂ = a.vertices[2].x
+    y₁ = a.vertices[1].y
+    y₂ = a.vertices[2].y
+    n₁ = (y₂-y₁)/𝐿
+    n₂ = (x₁-x₂)/𝐿
+    for i in 1:ng
+        G += 1
+        x = Node{(:𝑔,:𝐺,:𝐶,:𝑠),4}((i,G,C,s),data_𝓖)
+        ξ = x.ξ
+        x_,y_,z_ = a(ξ)
+        x.x = x_
+        x.y = y_
+        x.z = z_
+        x.𝑤 = 𝐿*x.w/2
+        push!(𝓖,x)
+        s += 2
+    end
+    element.n₁ = n₁
+    element.n₂ = n₂
+    g += ng
+    push!(elements["Γᵍ₃"],element)
+end
+
+
+
+    
     𝓒 = Node{(:𝐼,),1}[]
     𝓖 = Node{(:𝑔,:𝐺,:𝐶,:𝑠),4}[]
     c = 0
@@ -193,7 +256,7 @@ function import_fem(filename::String)
     ng = 2 
     gauss_scheme = :SegGI2
     scheme = ApproxOperator.quadraturerule(gauss_scheme)
-    nₑ = length(elms["Γᵍ"])
+    nₑ = length(elms["Γᶜ"])
     data_𝓖 = Dict([
          :ξ=>(1,scheme[:ξ]),
          :w=>(1,scheme[:w]),
@@ -208,7 +271,7 @@ function import_fem(filename::String)
          :∂𝝭∂y=>(4,zeros(ng*nₑ*2)),
     ])
     
-    for (C,a) in enumerate(elms["Γᵍ"])
+    for (C,a) in enumerate(elms["Γᶜ"])
         element = Element{:Seg2}((c,2,𝓒),(g,ng,𝓖))
         for v in a.vertices
             i = v.i
@@ -238,10 +301,11 @@ function import_fem(filename::String)
         element.n₁ = n₁
         element.n₂ = n₂
         g += ng
-        push!(elements["Γᵍ"],element)
+        push!(elements["Γᶜ"],element)
     end
     return elements,nodes
 end
+
 
 function import_fem2(filename::String)
     elms,nds = ApproxOperator.importmsh(filename)
