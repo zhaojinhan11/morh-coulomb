@@ -1,13 +1,13 @@
-c1 = 0.3;
-c2 = 0.039;
+c1 = 0.003;
+c2 = 0.2;
 
 Point(1) = {0, 0, 0, c2};
 Point(2) = {2, 0, 0, c2};
 Point(3) = {2, 4, 0, c2};
 Point(4) = {0, 4, 0, c2};
-Point(5) = {0, 0.5, 0, c2};
-Point(6) = {1.5, 2, 0, c2};
-Point(7) = {2, 2.5, 0, c2};
+Point(5) = {0, 0.5, 0, c1};
+Point(6) = {1.5, 2, 0, c1};
+Point(7) = {2, 2.5, 0, c1};
 
 
 Line(1) = {1,2};
@@ -32,7 +32,7 @@ Plane Surface(2) = {2};
 //Curve{7,8} In Surface{1};
 
 Physical Curve("Γᵍ₁") = {1};
-Physical Curve("Γᵍ₂") = {4};
+Physical Curve("Γᵍ₂ ") = {4};
 Physical Curve("Γᶜ") = {7};
 Physical Surface("Ω") = {1,2};
 

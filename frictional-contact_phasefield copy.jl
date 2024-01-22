@@ -1,8 +1,8 @@
 
-using Revise, ApproxOperator, LinearAlgebra, Printf
-using CairoMakie
+using Revise, ApproxOperator, LinearAlgebra, Printf,Pardiso
+using CairoMakie,SparseArrays
 include("importmsh_phasefield copy.jl") 
-elements,nodes = import_fem2("./msh/inclined_interfacemf4.msh")
+elements,nodes = import_fem2("./msh/inclined_interface22.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 # set shape functions
@@ -17,24 +17,24 @@ set𝝭!(elements["Γᵍ₁"])
 set𝝭!(elements["Γᵍ₂"])
 #set𝝭!(elements["Γᵍ₃"])
 #set𝝭!(elements["Γᵍ₄"])
-
 set𝝭!(elements["Γᶜ"])
-
+ps = MKLPardisoSolver()
+set_matrixtype!(ps,2)
 # material coefficients
 E = 10000
 ν = 0.3
 λ = E*ν/(1.0+ν)/(1.0-2.0*ν)     
 μ = 0.5*E/(1.0+ν)
 η = 1e-6
-kc = 20
-l = 0.08
+kc = 40
+l = 0.025
 μ̄  = 0.3
 tol = 1e-7                
 
 
 prescribe!(elements["Γᵍ₁"],:g₁=>(x,y,z)->0.0)
 prescribe!(elements["Γᵍ₁"],:g₂=>(x,y,z)->0.0)
-prescribe!(elements["Γᵍ₁"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
+prescribe!(elements["Γᵍ₁"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
 prescribe!(elements["Γᵍ₁"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
 prescribe!(elements["Γᵍ₁"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
 
@@ -52,12 +52,16 @@ prescribe!(elements["Γᵍ₂"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
 #prescribe!(elements["Γᵍ₃"],:g₂=>(x,y,z)->0.0)
 #prescribe!(elements["Γᵍ₃"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
 #prescribe!(elements["Γᵍ₃"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
-#prescribe!(elements["Γᵍ₃"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+#prescribe!(elements["Γᵍ₃"],:n₂₂=>(x,y,z,n₁,n₂)->0.0)
 
 prescribe!(elements["Γᶜ"],:g=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₁₁=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₂₂=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₁₂=>(x,y,z)->0.0)
+prescribe!(elements["Ω"],:σᵛ₁₁=>(x,y,z)->0.0)
+prescribe!(elements["Ω"],:σᵛ₂₂=>(x,y,z)->0.0)
+prescribe!(elements["Ω"],:σᵛ₁₂=>(x,y,z)->0.0)
+
 prescribe!(elements["Ω"],:ℋ=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:n₁=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:n₂=>(x,y,z)->0.0)
@@ -65,17 +69,17 @@ prescribe!(elements["Ω"],:n₂=>(x,y,z)->0.0)
 
 
 # assembly
-k₂ = zeros(nₚ,nₚ)
+k₂ = spzeros(nₚ,nₚ)
 f₂ = zeros(nₚ)
 dᵥ = zeros(nₚ)
-kᵅᶜ = zeros(nₚ,nₚ)
+kᵅᶜ = spzeros(nₚ,nₚ)
 fᵅᶜ = zeros(nₚ)
 fint = zeros(2*nₚ)
 fᵅ₁ = zeros(2*nₚ)
 fᵅ₂ = zeros(2*nₚ)
-kᵅ₁  = zeros(2*nₚ,2*nₚ)
-kᵅ₂  = zeros(2*nₚ,2*nₚ)
-k = zeros(2*nₚ,2*nₚ)
+kᵅ₁  = spzeros(2*nₚ,2*nₚ)
+kᵅ₂  = spzeros(2*nₚ,2*nₚ)
+k = spzeros(2*nₚ,2*nₚ)
 d = zeros(2*nₚ)
 Δd = zeros(2*nₚ)
 Δd₁ = zeros(nₚ)
@@ -105,7 +109,7 @@ ops = [
 max_iter = 10
 # Δt = 0.1
 # T = 1.0
-Δt = 0.0001
+Δt = 0.00001
 T = 2
 total_steps = round(Int,T/Δt)
 
@@ -120,7 +124,7 @@ ops[2](elements["Γᵍ₁"],kᵅ₁,fᵅ₁)
 #ops[2](elements["Γᵍ₃"],kᵅ₁,fᵅ₁)
 #ops[2](elements["Γᵍ₄"],kᵅ₁,fᵅ₁)
 ops[3](elements["Γᶜ"],kᵅᶜ,fᵅᶜ)
-for n in 1:total_steps
+for n in 1:10
     fill!(fᵅ₂,0.0)
     fill!(kᵅ₂,0.0)
 
@@ -139,33 +143,36 @@ for n in 1:total_steps
     iter = 0
     
     normΔ = 1.0
-    while normΔ > tol && iter < 10
+    while normΔ > tol && iter < total_steps
         iter += 1
         # phase field
         fill!(k₂,0.0)
         fill!(f₂,0.0)
         ops[4](elements["Ω"],k₂,f₂)
-        dᵥ .= (k₂+kᵅᶜ)\(f₂+fᵅᶜ)
+        #dᵥ .= (k₂+kᵅᶜ)\(f₂+fᵅᶜ)
+        solve!(ps,dᵥ,k₂+kᵅᶜ,f₂+fᵅᶜ)
         normΔv = norm(v - dᵥ)
         v .= dᵥ
 
         # update variables
         normΔ = normΔv 
         @printf("iter = %3i, normΔv = %10.2e\n", iter , normΔv)   
-        #ops[8](elements["Ω"],nodes,v)
+        ops[8](elements["Ω"],nodes,v)
     
         # plasticity
         normΔd = 1.0
         iter₂ = 0
-        while normΔd > tol && iter₂ < 5
+        while normΔd > tol && iter₂ < 10
             iter₂ += 1
             fill!(k,0.0)
             fill!(fint,0.0)
             ops[1].(elements["Ω"];k=k,fint=fint)
             if iter₂ == 1
-                Δd .= (k+kᵅ₁+kᵅ₂)\(fᵅ₁+fᵅ₂-fint)
+               # Δd .= (k+kᵅ₁+kᵅ₂)\(fᵅ₁+fᵅ₂-fint)
+               solve!(ps,Δd,k+kᵅ₁+kᵅ₂,fᵅ₁+fᵅ₂-fint)
             else
-                Δd .= (k+kᵅ₁+kᵅ₂)\(-fint)
+               # Δd .= (k+kᵅ₁+kᵅ₂)\(-fint)
+               solve!(ps,Δd,k+kᵅ₁+kᵅ₂,-fint)
             end
 
             Δd₁ .= Δd[1:2:2*nₚ]
@@ -179,11 +186,16 @@ for n in 1:total_steps
 
         end
     end
-    # ops[5](elements["Ω"])
-    # if n == 1
+     ops[5](elements["Ω"])
+   
+     for ap in elements["Ω"][1:1]
+        𝓒 = ap.𝓒
+        ξ, = ap.𝓖
+        ℋ = ξ.ℋ 
+        println(ℋ)
+    end
 
-
-    fo = open("./vtk/mehsfree2/figure"*string(n,pad=4)*".vtk","w")
+    fo = open("./vtk/111/figure"*string(n,pad=4)*".vtk","w")
     # fo = open("./vtk/friction2/figure"*string(iter₂,pad=4)*".vtk","w")
     @printf fo "# vtk DataFile Version 2.0\n"
     @printf fo "Test\n"
@@ -237,11 +249,12 @@ for n in 1:total_steps
 # end
 # end
 end
-# println(σ)
-# println(ε)
-# f = Figure()
-# Axis(f[1,1])
-# scatterlines!(ε,σ)
-# f
+ #println(ℋ)
+ #println(ℋ)
+ #println(n)
+ #f = Figure()
+ #Axis(f[1,1])
+ #scatterlines!(ε,σ)
+ #f
 
 
