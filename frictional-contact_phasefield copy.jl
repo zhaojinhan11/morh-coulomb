@@ -2,7 +2,7 @@
 using Revise, ApproxOperator, LinearAlgebra, Printf,Pardiso
 using CairoMakie,SparseArrays
 include("importmsh_phasefield copy.jl") 
-elements,nodes = import_fem2("./msh/inclined_interface22.msh")
+elements,nodes = import_fem2("./msh/inclined_interface2.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 # set shape functions
@@ -81,6 +81,7 @@ kᵅ₁  = spzeros(2*nₚ,2*nₚ)
 kᵅ₂  = spzeros(2*nₚ,2*nₚ)
 k = spzeros(2*nₚ,2*nₚ)
 d = zeros(2*nₚ)
+u = zeros(2*nₚ)
 Δd = zeros(2*nₚ)
 Δd₁ = zeros(nₚ)
 Δd₂ = zeros(nₚ)
@@ -106,10 +107,10 @@ ops = [
     Operator{:CRACK_NORMAL}(:l=>l)
 ]
 
-max_iter = 10
+max_iter = 100
 # Δt = 0.1
 # T = 1.0
-Δt = 0.00001
+Δt = 0.001
 T = 2
 total_steps = round(Int,T/Δt)
 
@@ -143,7 +144,7 @@ for n in 1:10
     iter = 0
     
     normΔ = 1.0
-    while normΔ > tol && iter < total_steps
+    while normΔ > tol && iter < 10
         iter += 1
         # phase field
         fill!(k₂,0.0)
@@ -162,27 +163,30 @@ for n in 1:10
         # plasticity
         normΔd = 1.0
         iter₂ = 0
-        while normΔd > tol && iter₂ < 10
+        while normΔd > tol && iter₂ < 100
             iter₂ += 1
             fill!(k,0.0)
             fill!(fint,0.0)
             ops[1].(elements["Ω"];k=k,fint=fint)
-            if iter₂ == 1
+            #if iter₂ == 1
                # Δd .= (k+kᵅ₁+kᵅ₂)\(fᵅ₁+fᵅ₂-fint)
-               solve!(ps,Δd,k+kᵅ₁+kᵅ₂,fᵅ₁+fᵅ₂-fint)
-            else
+               solve!(ps,Δd,k+kᵅ₁+kᵅ₂,fᵅ₁+fᵅ₂)
+           # else
                # Δd .= (k+kᵅ₁+kᵅ₂)\(-fint)
-               solve!(ps,Δd,k+kᵅ₁+kᵅ₂,-fint)
-            end
+               #solve!(ps,Δd,k+kᵅ₁+kᵅ₂)
+          #  end
 
             Δd₁ .= Δd[1:2:2*nₚ]
             Δd₂ .= Δd[2:2:2*nₚ]
             d₁ .+= Δd₁
             d₂ .+= Δd₂
-            # normΔd = norm(Δd)/(norm(d₁) + norm(d₂))
-            normΔd = norm(Δd)
+            normΔd = norm(u .- Δd)
+            u  .= Δd
+            #normΔd = norm(Δd)/(norm(d₁) + norm(d₂))
+            normΔd1 = norm(Δd)
 
-            @printf("iter₂ = %3i, normΔd = %10.2e\n", iter₂ , normΔd)   
+            @printf("iter₂ = %3i, normΔd = %10.2e\n", iter₂ , normΔd)
+            #@printf("iter₂ = %3i, normΔd1 = %10.2e\n", iter₂ , normΔd1)     
 
         end
     end
