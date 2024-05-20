@@ -1,8 +1,8 @@
 
 using Revise, ApproxOperator, LinearAlgebra, Printf
 using CairoMakie
-include("importmsh_phasefield lastly.jl") 
-elements,nodes = import_fem2("./msh/inclined_interfaceshuang.msh")
+include("importmsh_phasefield copy.jl") 
+elements,nodes = import_fem("./msh/inclined_interface3.msh")
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 # set shape functions
@@ -15,31 +15,30 @@ set𝝭!(elements["Ω"])
 set∇𝝭!(elements["Ω"])
 set𝝭!(elements["Γᵍ₁"])
 set𝝭!(elements["Γᵍ₂"])
-#set𝝭!(elements["Γᵍ₃"])
+set𝝭!(elements["Γᵍ₃"])
 #set𝝭!(elements["Γᵍ₄"])
 
 set𝝭!(elements["Γᶜ"])
 
 # material coefficients
-E = 31.2E3
+E = 1000
 ν = 0.3
 λ = E*ν/(1.0+ν)/(1.0-2.0*ν)     
 μ = 0.5*E/(1.0+ν)
 η = 1e-6
-kc = 20
-l = 0.0008
-μ̄  = 0.2
+kc = 40
+l = 0.08
+μ̄  = 0.22
 tol = 1e-7                
 
 
 prescribe!(elements["Γᵍ₁"],:g₁=>(x,y,z)->0.0)
-
+prescribe!(elements["Γᵍ₂"],:g₂=>(x,y,z)->0.0)
 prescribe!(elements["Γᵍ₁"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
 prescribe!(elements["Γᵍ₁"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
 prescribe!(elements["Γᵍ₁"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
 
 prescribe!(elements["Γᵍ₂"],:g₁=>(x,y,z)->0.0)
-prescribe!(elements["Γᵍ₂"],:g₂=>(x,y,z)->0.0)
 prescribe!(elements["Γᵍ₂"],:n₁₁=>(x,y,z,n₁,n₂)->0.0)
 prescribe!(elements["Γᵍ₂"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
 prescribe!(elements["Γᵍ₂"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
@@ -53,7 +52,7 @@ prescribe!(elements["Γᵍ₃"],:g₁=>(x,y,z)->0.0)
 prescribe!(elements["Γᵍ₃"],:g₂=>(x,y,z)->0.0)
 prescribe!(elements["Γᵍ₃"],:n₁₁=>(x,y,z,n₁,n₂)->1.0)
 prescribe!(elements["Γᵍ₃"],:n₁₂=>(x,y,z,n₁,n₂)->0.0)
-prescribe!(elements["Γᵍ₃"],:n₂₂=>(x,y,z,n₁,n₂)->1.0)
+prescribe!(elements["Γᵍ₃"],:n₂₂=>(x,y,z,n₁,n₂)->0.0)
 
 prescribe!(elements["Γᶜ"],:g=>(x,y,z)->0.0)
 prescribe!(elements["Ω"],:σ₁₁=>(x,y,z)->0.0)
@@ -118,13 +117,12 @@ Et = zeros(total_steps+1) # total energy
 ε = zeros(total_steps+1)
 
 ops[2](elements["Γᵍ₂"],kᵅ₁,fᵅ₁)
-#ops[2](elements["Γᵍ₃"],kᵅ₁,fᵅ₁)
+ops[2](elements["Γᵍ₃"],kᵅ₁,fᵅ₁)
 #ops[2](elements["Γᵍ₄"],kᵅ₁,fᵅ₁)
 ops[3](elements["Γᶜ"],kᵅᶜ,fᵅᶜ)
 for n in 1:total_steps
     fill!(fᵅ₂,0.0)
     fill!(kᵅ₂,0.0)
-
     #prescribe!(elements["Γᵍ"],:t₁=>(x,y,z)->0.0)
     #@printf "Load step=%i, f=%e \n" n T*n/total_steps
     #prescribe!(elements["Γᵍ"],:t₂=>(x,y,z)->T*n/total_steps)
@@ -134,14 +132,14 @@ for n in 1:total_steps
         h = Δt  
     end
   
-    prescribe!(elements["Γᵍ₁"],:g₂=>(x,y,z)->(h))
+    prescribe!(elements["Γᵍ₂"],:g₂=>(x,y,z)->(-h))
     ops[2](elements["Γᵍ₂"],kᵅ₂,fᵅ₂)
 
     @printf "Load step=%i, f=%e \n" n (n*Δt)
     iter = 0
     
     normΔ = 1.0
-    while normΔ > tol && iter < 5
+    while normΔ > tol && iter < 20
         iter += 1
         # phase field
         fill!(k₂,0.0)
@@ -159,7 +157,7 @@ for n in 1:total_steps
         # plasticity
         normΔd = 1.0
         iter₂ = 0
-        while normΔd > tol && iter₂ < 5
+        while normΔd > tol && iter₂ < 20
             iter₂ += 1
             fill!(k,0.0)
             fill!(fint,0.0)
@@ -185,7 +183,7 @@ for n in 1:total_steps
     # if n == 1
 
 
-    fo = open("./vtk/shuang/figure"*string(n,pad=4)*".vtk","w")
+    fo = open("./vtk/33/figure"*string(n,pad=4)*".vtk","w")
     # fo = open("./vtk/friction2/figure"*string(iter₂,pad=4)*".vtk","w")
     @printf fo "# vtk DataFile Version 2.0\n"
     @printf fo "Test\n"

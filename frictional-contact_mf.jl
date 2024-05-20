@@ -1,7 +1,7 @@
 using Revise, ApproxOperator, LinearAlgebra, Printf,Pardiso
 using CairoMakie,SparseArrays
 include("meshfreeinput.jl")
-elements,nodes,elms = import23("./msh/inclined_interfacemf3.msh",:TriGI3)
+elements,nodes,elms = import23("./msh/inclined_interfacemf31.msh",:TriGI3)
 nₚ = length(nodes)
 nₑ = length(elements["Ω"])
 s = zeros(nₑ)
@@ -27,7 +27,7 @@ for node  in nodes
     end 
      global #s = 1.5*(0.047*(𝐿₀/(𝐿₁+1e-15)) + 0.003)
       #s = 1.5*(0.00522*10^(𝐿₀/(𝐿₁+1e-15)) - 0.002222)
-   s = 1.5*0.03 
+   s = 1.5*0.02 
     node.s₁ = s
     node.s₂ = s
     node.s₃ = s
@@ -215,7 +215,7 @@ for n in 1:total_steps
      ops[5](elements["Ω"])
     # if n == 1
 
-    fo = open("./vtk/meshfree3/figure"*string(n,pad=4)*".vtk","w")
+    fo = open("./vtk/33/figure"*string(n,pad=4)*".vtk","w")
     # fo = open("./vtk/friction2/figure"*string(iter₂,pad=4)*".vtk","w")
     @printf fo "# vtk DataFile Version 2.0\n"
     @printf fo "Test\n"
